@@ -1,0 +1,132 @@
+:root {
+  --bg: #FFF8F0;
+  --card: #FFFFFF;
+  --ink: #2B2B2B;
+  --muted: #6B7178;
+  --steel: #7D858D;
+  --steel-dark: #4F565E;
+  --accent: #E4572E;
+  --line: #E8E1D8;
+  --danger: #B3261E;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+a { color: var(--steel-dark); }
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.logo img { display: block; height: 96px; width: auto; }
+.signout { display: flex; align-items: center; gap: 10px; margin: 0; }
+.who { color: var(--muted); font-size: 0.9rem; }
+
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+
+h1 { margin: 0 0 8px; font-size: 1.8rem; }
+h2 { margin: 24px 0 8px; font-size: 1.2rem; }
+
+.muted { color: var(--muted); }
+.hint { color: var(--muted); font-weight: normal; font-size: 0.85rem; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 24px;
+}
+.narrow { max-width: 420px; margin: 24px auto; }
+
+.welcome { text-align: center; padding: 48px 0 16px; }
+.welcome h1 { font-size: 2.2rem; }
+.welcome .sub { font-size: 1rem; color: var(--muted); max-width: 520px; margin: 0 auto 32px; }
+.menu { display: flex; flex-direction: column; gap: 14px; max-width: 320px; margin: 0 auto; }
+
+.btn {
+  display: inline-block;
+  border: 2px solid var(--steel-dark);
+  background: var(--steel);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 10px;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+}
+.btn:hover { background: var(--steel-dark); }
+.btn.big { font-size: 1.25rem; padding: 16px 24px; }
+.btn.secondary { background: var(--accent); border-color: #B8431F; }
+.btn.secondary:hover { background: #B8431F; }
+.btn.small { padding: 6px 12px; font-size: 0.9rem; }
+.btn.danger { background: #fff; color: var(--danger); border-color: var(--danger); }
+.btn.danger:hover { background: var(--danger); color: #fff; }
+.link { background: none; border: 0; padding: 0; font: inherit; color: var(--steel-dark); text-decoration: underline; cursor: pointer; }
+
+.stack { display: flex; flex-direction: column; gap: 14px; }
+label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
+input, textarea {
+  font: inherit;
+  padding: 10px 12px;
+  border: 1px solid #CFC7BD;
+  border-radius: 8px;
+  background: #fff;
+  width: 100%;
+}
+input:focus, textarea:focus { outline: 2px solid var(--steel); border-color: var(--steel); }
+
+.error { background: #FDECEA; color: var(--danger); padding: 10px 12px; border-radius: 8px; }
+.notice { background: #EAF4EA; color: #256029; padding: 10px 12px; border-radius: 8px; }
+.pill { display: inline-block; background: #FFF1D6; color: #7A5200; padding: 2px 10px; border-radius: 999px; font-size: 0.85rem; margin: 0 0 8px; }
+
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.page-head h1 { margin: 0; }
+
+.unverified-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFF1D6;
+  border: 1px dashed #D9A441;
+  color: #7A5200;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.badge { background: #D9A441; color: #fff; border-radius: 999px; padding: 0 10px; font-size: 0.9rem; }
+
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.list li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
+.list a { display: flex; flex-direction: column; padding: 14px 16px; text-decoration: none; color: var(--ink); }
+.list .title { font-weight: 700; font-size: 1.1rem; }
+.list .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.list .row a { flex: 1; }
+.list .row .actions { padding: 0 16px 0 0; }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
+.actions form { margin: 0; }
+.list .actions { margin-top: 0; }
+
+.switch { margin-top: 16px; }
+
+@media (max-width: 480px) {
+  .logo img { height: 76px; }
+  .welcome h1 { font-size: 1.8rem; }
+  .list .row .actions { padding: 0 16px 14px; }
+}

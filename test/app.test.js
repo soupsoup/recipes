@@ -1,0 +1,92 @@
+const { test, before, after } = require('node:test');
+const assert = require('node:assert');
+const { createApp } = require('../server');
+
+let server;
+let base;
+
+before(async () => {
+  const app = createApp({ dbFile: ':memory:', adminEmail: 'admin@example.com' });
+  await new Promise((resolve) => { server = app.listen(0, resolve); });
+  base = `http://localhost:${server.address().port}`;
+});
+
+after(() => server.close());
+
+async function post(path, fields, cookie) {
+  return fetch(base + path, {
+    method: 'POST',
+    redirect: 'manual',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', ...(cookie && { cookie }) },
+    body: new URLSearchParams(fields),
+  });
+}
+
+async function get(path, cookie) {
+  return fetch(base + path, { redirect: 'manual', headers: cookie ? { cookie } : {} });
+}
+
+async function signup(name, email) {
+  const res = await post('/signup', { name, email, password: 'password123' });
+  assert.strictEqual(res.status, 302);
+  return res.headers.get('set-cookie').split(';')[0];
+}
+
+test('signed-out visitors are sent to sign in', async () => {
+  for (const path of ['/', '/recipes', '/recipes/new']) {
+    const res = await get(path);
+    assert.strictEqual(res.status, 302);
+    assert.strictEqual(res.headers.get('location'), '/login');
+  }
+});
+
+test('home page shows the welcome text and both options', async () => {
+  const cookie = await signup('Sam', 'sam@example.com');
+  const html = await (await get('/', cookie)).text();
+  assert.match(html, /Welcome to Cool Cooking Recipes/);
+  assert.match(html, /href="\/recipes"[^>]*>Recipes</);
+  assert.match(html, />Create recipe</);
+  assert.match(html, /src="\/logo.svg"/);
+});
+
+test('new recipes wait for the admin to verify them', async () => {
+  const cook = await signup('Cook', 'cook@example.com');
+  const admin = await signup('Admin', 'Admin@Example.com');
+
+  await post('/recipes', { title: 'Pancakes', ingredients: 'Flour\nEggs', steps: 'Mix\nFry' }, cook);
+
+  let html = await (await get('/recipes', cook)).text();
+  assert.doesNotMatch(html, /Pancakes/);
+  assert.doesNotMatch(html, /Unverified recipes/);
+  assert.strictEqual((await get('/recipes/unverified', cook)).status, 404);
+
+  html = await (await get('/recipes', admin)).text();
+  assert.match(html, /Unverified recipes/);
+  html = await (await get('/recipes/unverified', admin)).text();
+  assert.match(html, /Pancakes/);
+  const id = html.match(/\/recipes\/(\d+)\/verify/)[1];
+
+  assert.strictEqual((await post(`/recipes/${id}/verify`, {}, cook)).status, 404);
+  assert.strictEqual((await post(`/recipes/${id}/verify`, {}, admin)).status, 302);
+
+  html = await (await get('/recipes', cook)).text();
+  assert.match(html, /Pancakes/);
+  html = await (await get('/recipes/unverified', admin)).text();
+  assert.doesNotMatch(html, /Pancakes/);
+});
+
+test('recipe text is escaped', async () => {
+  const cookie = await signup('Eve', 'eve@example.com');
+  await post('/recipes', { title: '<script>x</script>', ingredients: 'a', steps: 'b' }, cookie);
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+  const html = await (await get('/recipes/unverified', admin)).text();
+  assert.match(html, /&lt;script&gt;x/);
+  assert.doesNotMatch(html, /<script>x/);
+});
+
+test('wrong password is rejected', async () => {
+  await signup('Kim', 'kim@example.com');
+  const res = await post('/login', { email: 'kim@example.com', password: 'nope' });
+  assert.strictEqual(res.status, 401);
+});

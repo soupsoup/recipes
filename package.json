@@ -1,0 +1,17 @@
+{
+  "name": "cool-cooking-recipes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Share recipes. New recipes wait for the admin to verify them.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --no-warnings server.js",
+    "test": "node --no-warnings --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
