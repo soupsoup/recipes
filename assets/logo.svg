@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-label="Cool Cooking Recipes">
+  <title>Cool Cooking Recipes</title>
+  <rect width="1200" height="500" fill="#FFF8F0"/>
+  <g fill="#8A9199">
+    <!-- handle -->
+    <rect x="40" y="218" width="440" height="64" rx="32"/>
+    <!-- neck flaring into the head -->
+    <path d="M440 218 C 510 218, 520 71, 610 71 L 610 429 C 520 429, 510 282, 440 282 Z"/>
+    <!-- palm joining the tines -->
+    <rect x="605" y="71" width="40" height="358"/>
+    <!-- four tines, leaving three gaps for the words -->
+    <rect x="605" y="71" width="535" height="40" rx="20"/>
+    <rect x="605" y="177" width="535" height="40" rx="20"/>
+    <rect x="605" y="283" width="535" height="40" rx="20"/>
+    <rect x="605" y="389" width="535" height="40" rx="20"/>
+  </g>
+  <!-- rounded inner ends of the three gaps -->
+  <g fill="#FFF8F0">
+    <rect x="605" y="111" width="600" height="66" rx="33"/>
+    <rect x="605" y="217" width="600" height="66" rx="33"/>
+    <rect x="605" y="323" width="600" height="66" rx="33"/>
+  </g>
+  <g fill="#2B2B2B" font-family="Nunito, 'Arial Rounded MT Bold', 'DejaVu Sans', sans-serif" font-weight="800" font-size="46" text-anchor="middle" dominant-baseline="central">
+    <text x="872" y="144">Cool</text>
+    <text x="872" y="250">Cooking</text>
+    <text x="872" y="356">Recipes</text>
+  </g>
+</svg>
