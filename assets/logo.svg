@@ -14,27 +14,27 @@
   <rect width="1110" height="540" fill="#FFF8F0"/>
   <!-- whole fork as one shape: handle, neck, four shorter tines -->
   <path filter="url(#shadow)" fill="url(#steel)" stroke="#4F565E" stroke-width="5" stroke-linejoin="round"
-    d="M90 230 L470 230 C550 230, 560 71, 650 71
-       L1000 71 Q1045 71 1062 96 Q1045 121 1000 121
-       L693 121 A33 33 0 0 0 693 187
-       L1000 187 Q1045 187 1062 212 Q1045 237 1000 237
-       L693 237 A33 33 0 0 0 693 303
-       L1000 303 Q1045 303 1062 328 Q1045 353 1000 353
-       L693 353 A33 33 0 0 0 693 419
-       L1000 419 Q1045 419 1062 444 Q1045 469 1000 469
-       L650 469 C560 469, 550 310, 470 310
+    d="M90 230 L470 230 C550 230, 560 83, 650 83
+       L1000 83 Q1045 83 1062 108 Q1045 133 1000 133
+       L689 133 A29 29 0 0 0 689 191
+       L1000 191 Q1045 191 1062 216 Q1045 241 1000 241
+       L689 241 A29 29 0 0 0 689 299
+       L1000 299 Q1045 299 1062 324 Q1045 349 1000 349
+       L689 349 A29 29 0 0 0 689 407
+       L1000 407 Q1045 407 1062 432 Q1045 457 1000 457
+       L650 457 C560 457, 550 310, 470 310
        L90 310 A40 40 0 0 1 90 230 Z"/>
   <!-- highlights along the handle and tine tops -->
   <g stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="6" stroke-linecap="round" fill="none">
     <path d="M92 245 L468 245"/>
-    <path d="M700 84 L990 84"/>
-    <path d="M720 200 L990 200"/>
-    <path d="M720 316 L990 316"/>
-    <path d="M720 432 L990 432"/>
+    <path d="M700 96 L990 96"/>
+    <path d="M720 204 L990 204"/>
+    <path d="M720 312 L990 312"/>
+    <path d="M720 420 L990 420"/>
   </g>
-  <g fill="#2B2B2B" font-family="Nunito, 'Arial Rounded MT Bold', 'DejaVu Sans', sans-serif" font-weight="800" font-size="46" text-anchor="middle" dominant-baseline="central">
-    <text x="868" y="154">Cool</text>
+  <g fill="#2B2B2B" font-family="Nunito, 'Arial Rounded MT Bold', 'DejaVu Sans', sans-serif" font-weight="800" font-size="44" text-anchor="middle" dominant-baseline="central">
+    <text x="868" y="162">Cool</text>
     <text x="868" y="270">Cooking</text>
-    <text x="868" y="386">Recipes</text>
+    <text x="868" y="378">Recipes</text>
   </g>
 </svg>
