@@ -15,22 +15,22 @@
   <!-- whole fork as one shape: handle, neck, four shorter tines -->
   <path filter="url(#shadow)" fill="url(#steel)" stroke="#4F565E" stroke-width="5" stroke-linejoin="round"
     d="M90 230 L470 230 C550 230, 560 71, 650 71
-       L1035 71 A25 25 0 0 1 1035 121
+       L1000 71 Q1045 71 1062 96 Q1045 121 1000 121
        L693 121 A33 33 0 0 0 693 187
-       L1035 187 A25 25 0 0 1 1035 237
+       L1000 187 Q1045 187 1062 212 Q1045 237 1000 237
        L693 237 A33 33 0 0 0 693 303
-       L1035 303 A25 25 0 0 1 1035 353
+       L1000 303 Q1045 303 1062 328 Q1045 353 1000 353
        L693 353 A33 33 0 0 0 693 419
-       L1035 419 A25 25 0 0 1 1035 469
+       L1000 419 Q1045 419 1062 444 Q1045 469 1000 469
        L650 469 C560 469, 550 310, 470 310
        L90 310 A40 40 0 0 1 90 230 Z"/>
   <!-- highlights along the handle and tine tops -->
   <g stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="6" stroke-linecap="round" fill="none">
     <path d="M92 245 L468 245"/>
-    <path d="M700 84 L1030 84"/>
-    <path d="M720 200 L1030 200"/>
-    <path d="M720 316 L1030 316"/>
-    <path d="M720 432 L1030 432"/>
+    <path d="M700 84 L990 84"/>
+    <path d="M720 200 L990 200"/>
+    <path d="M720 316 L990 316"/>
+    <path d="M720 432 L990 432"/>
   </g>
   <g fill="#2B2B2B" font-family="Nunito, 'Arial Rounded MT Bold', 'DejaVu Sans', sans-serif" font-weight="800" font-size="46" text-anchor="middle" dominant-baseline="central">
     <text x="868" y="154">Cool</text>
