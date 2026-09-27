@@ -225,7 +225,61 @@ function createApp({ db, adminEmail }) {
     // Unverified recipes are visible only to the admin and the person who wrote them.
     const canSee = recipe && (recipe.verified || isAdmin(req.user) || recipe.author_id === req.user.id);
     if (!canSee) return res.status(404).send(views.notFoundPage({ user: req.user }));
-    res.send(views.recipePage({ user: req.user, isAdmin: isAdmin(req.user), recipe }));
+    const notice = req.query.edited
+      ? (recipe.verified ? 'Your changes are saved.' : 'Your changes are saved. They will show in Recipes once they have been verified.')
+      : '';
+    res.send(views.recipePage({ user: req.user, isAdmin: isAdmin(req.user), recipe, notice }));
+  });
+
+  // Editing: only the person who wrote the recipe. A verified recipe goes back to be
+  // verified after an edit (unless the admin edited it), so changes are reviewed too.
+  async function ownRecipe(req) {
+    const id = recipeId(req);
+    const [recipe] = id ? await recipes(req, 'WHERE recipes.id = $2', [id]) : [];
+    return recipe && recipe.author_id === req.user.id ? recipe : null;
+  }
+
+  app.get('/recipes/:id/edit', async (req, res) => {
+    const recipe = await ownRecipe(req);
+    if (!recipe) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    res.send(views.recipeFormPage({
+      user: req.user, recipe, values: recipe, sendsBackToReview: recipe.verified && !isAdmin(req.user),
+    }));
+  });
+
+  app.post('/recipes/:id/edit', async (req, res) => {
+    const recipe = await ownRecipe(req);
+    if (!recipe) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    const values = {
+      title: (req.body.title || '').trim(),
+      ingredients: (req.body.ingredients || '').trim(),
+      steps: (req.body.steps || '').trim(),
+      photo: String(req.body.photo || ''),
+      remove_photo: req.body.remove_photo === '1' ? '1' : '0',
+    };
+    const keepVerified = recipe.verified && isAdmin(req.user);
+    const fail = (error) => res.status(400).send(views.recipeFormPage({
+      user: req.user, recipe, values, error, sendsBackToReview: recipe.verified && !keepVerified,
+    }));
+    if (!values.title || !values.ingredients || !values.steps) return fail('Please fill in every field.');
+    const photo = values.photo ? parseImage(values.photo, MAX_PHOTO_BYTES) : null;
+    if (values.photo && !photo) {
+      values.photo = '';
+      return fail("That photo couldn't be used. Try a different JPEG or PNG photo.");
+    }
+    await db.query(
+      'UPDATE recipes SET title = $1, ingredients = $2, steps = $3, verified = $4 WHERE id = $5 AND author_id = $6',
+      [values.title, values.ingredients, values.steps, keepVerified, recipe.id, req.user.id],
+    );
+    if (photo) {
+      await db.query(
+        'UPDATE recipes SET photo = $1, photo_type = $2, photo_updated_at = now() WHERE id = $3',
+        [photo.bytes, photo.type, recipe.id],
+      );
+    } else if (values.remove_photo === '1') {
+      await db.query('UPDATE recipes SET photo = NULL, photo_type = NULL, photo_updated_at = NULL WHERE id = $1', [recipe.id]);
+    }
+    res.redirect(`/recipes/${recipe.id}?edited=1`);
   });
 
   // Same visibility rule as the recipe page itself.

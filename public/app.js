@@ -112,6 +112,7 @@ if (photoFile) {
   const data = document.getElementById('photo-data');
   const hint = document.getElementById('photo-hint');
   const remove = document.getElementById('photo-remove');
+  const removeFlag = document.getElementById('photo-remove-flag');
 
   photoFile.addEventListener('change', async () => {
     const file = photoFile.files[0];
@@ -129,6 +130,7 @@ if (photoFile) {
         url = canvas.toDataURL('image/jpeg', quality);
       }
       data.value = url;
+      removeFlag.value = '0';
       const img = new Image();
       img.alt = 'Your recipe photo';
       img.src = url;
@@ -144,6 +146,7 @@ if (photoFile) {
 
   remove.addEventListener('click', () => {
     data.value = '';
+    removeFlag.value = '1';
     preview.replaceChildren();
     preview.hidden = true;
     remove.hidden = true;

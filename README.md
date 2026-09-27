@@ -48,6 +48,9 @@ sends every request that isn't a file in `public/` to it.
 - Create recipe has an optional **Upload photo** button. The browser shrinks
   the photo to at most 1000px before upload, and the photo follows the same
   rules as its recipe: only the author and the admin see it until it's verified.
+- Only the person who made a recipe can edit it (**Edit recipe** on the recipe,
+  or **Edit** in My recipes). Editing a verified recipe sends it back to be
+  verified, unless the admin edited their own recipe.
 - My recipes lists everything you've shared, marked verified or waiting.
 - Each verified recipe has a heart. Pressing it saves the recipe to your
   **Favorites** (a button at the top of Recipes); pressing it again removes it.

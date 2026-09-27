@@ -299,3 +299,53 @@ test('recipes can have a photo that follows the same visibility as the recipe', 
   assert.strictEqual(res.status, 302, 'the photo is optional');
   assert.match(await (await get('/recipes/new', cook)).text(), />Upload photo\s*</);
 });
+
+test('authors can edit their recipes, and edits to verified recipes are reviewed again', async () => {
+  const cook = await signup('Wes', 'wes@example.com');
+  const other = await signup('Xia', 'xia@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+  const jpeg = (n) => `data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0, n, 0xff, 0xd9]).toString('base64')}`;
+
+  await post('/recipes', { title: 'Wes Chili', ingredients: 'Beans', steps: 'Simmer', photo: jpeg(1) }, cook);
+  const mine = await (await get('/recipes/mine', cook)).text();
+  const id = [...mine.matchAll(/href="\/recipes\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g)].find((m) => m[2].includes('Wes Chili'))[1];
+  assert.match(mine, new RegExp(`href="/recipes/${id}/edit"`), 'My recipes has an Edit button');
+  await post(`/recipes/${id}/verify`, {}, admin);
+
+  // Only the author gets the edit page and button.
+  assert.strictEqual((await get(`/recipes/${id}/edit`, other)).status, 404);
+  assert.strictEqual((await post(`/recipes/${id}/edit`, { title: 'Hacked', ingredients: 'x', steps: 'y' }, other)).status, 404);
+  assert.doesNotMatch(await (await get(`/recipes/${id}`, other)).text(), /Edit recipe/);
+  assert.match(await (await get(`/recipes/${id}`, cook)).text(), new RegExp(`href="/recipes/${id}/edit"[^>]*>Edit recipe`));
+
+  const form = await (await get(`/recipes/${id}/edit`, cook)).text();
+  assert.match(form, /value="Wes Chili"/, 'the form starts with the current recipe');
+  assert.match(form, /sends this recipe back to be verified/);
+
+  // Editing a verified recipe: text changes, photo kept, recipe hidden until verified again.
+  const res = await post(`/recipes/${id}/edit`, { title: 'Wes Spicy Chili', ingredients: 'Beans\nChili', steps: 'Simmer' }, cook);
+  assert.strictEqual(res.headers.get('location'), `/recipes/${id}?edited=1`);
+  let page = await (await get(`/recipes/${id}?edited=1`, cook)).text();
+  assert.match(page, /Wes Spicy Chili/);
+  assert.match(page, /class="recipe-photo"/, 'leaving the photo alone keeps it');
+  assert.match(page, /once they have been verified/);
+  assert.strictEqual((await get(`/recipes/${id}`, other)).status, 404, 'hidden again until re-verified');
+  assert.match(await (await get('/recipes/unverified', admin)).text(), /Wes Spicy Chili/);
+
+  // Removing and replacing the photo.
+  await post(`/recipes/${id}/edit`, { title: 'Wes Spicy Chili', ingredients: 'Beans', steps: 'Simmer', remove_photo: '1' }, cook);
+  assert.doesNotMatch(await (await get(`/recipes/${id}`, cook)).text(), /class="recipe-photo"/);
+  await post(`/recipes/${id}/edit`, { title: 'Wes Spicy Chili', ingredients: 'Beans', steps: 'Simmer', photo: jpeg(2) }, cook);
+  assert.match(await (await get(`/recipes/${id}`, cook)).text(), /class="recipe-photo"/);
+
+  assert.strictEqual((await post(`/recipes/${id}/edit`, { title: '', ingredients: 'x', steps: 'y' }, cook)).status, 400);
+
+  // The admin's own recipes stay verified when edited.
+  await post('/recipes', { title: 'Admin Stew', ingredients: 'Stew', steps: 'Cook' }, admin);
+  const adminMine = await (await get('/recipes/mine', admin)).text();
+  const stew = [...adminMine.matchAll(/href="\/recipes\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g)].find((m) => m[2].includes('Admin Stew'))[1];
+  await post(`/recipes/${stew}/verify`, {}, admin);
+  await post(`/recipes/${stew}/edit`, { title: 'Admin Stew v2', ingredients: 'Stew', steps: 'Cook' }, admin);
+  assert.match(await (await get('/recipes', other)).text(), /Admin Stew v2/);
+});

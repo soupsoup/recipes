@@ -291,3 +291,9 @@ body.home .welcome h1, body.home .welcome .sub { text-shadow: 0 2px 6px rgba(10,
   .thumb { width: 60px; height: 60px; }
 }
 .recipe-card .thumb + .card-body { padding-left: 12px; }
+
+/* Editing recipes */
+.recipe-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.recipe-title-row h1 { flex: 1; min-width: 200px; }
+.recipe-card .edit-link { position: relative; z-index: 1; flex: none; margin-right: 16px; }
+.warning { background: #FFF1D6; color: #7A5200; padding: 10px 12px; border-radius: 8px; }
