@@ -47,6 +47,7 @@ test('home page shows the welcome text and all three options', async () => {
   assert.match(html, /href="\/recipes"[^>]*>Recipes</);
   assert.match(html, />Create recipe</);
   assert.match(html, />My recipes</);
+  assert.match(html, /class="food-bg" aria-hidden="true"/);
   assert.match(html, /src="\/logo.svg"/);
 });
 

@@ -148,3 +148,39 @@ body.home .welcome .sub { color: #D3DEEF; }
 body.home .welcome .sub strong { color: #FFFFFF; }
 body.home .menu .btn { background: #1A3157; border-color: #4E6E9E; color: #FFFFFF; }
 body.home .menu .btn:hover { background: #233F6E; border-color: #7F9CC8; }
+
+/* Floating food: sits behind the header, text and buttons and never catches taps */
+body.home .top { position: relative; z-index: 2; }
+body.home main { position: relative; }
+body.home .welcome { position: relative; z-index: 1; }
+body.home .welcome h1, body.home .welcome .sub { text-shadow: 0 2px 6px rgba(10, 25, 50, 0.6); }
+
+.food-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.food-bg span {
+  position: absolute;
+  top: 0;
+  opacity: 0.55;
+  line-height: 1;
+  animation-name: food-float;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+@keyframes food-float {
+  0%   { transform: translate(0, 110vh) rotate(0deg); }
+  25%  { transform: translate(var(--sway), 80vh) rotate(90deg); }
+  50%  { transform: translate(0, 45vh) rotate(180deg); }
+  75%  { transform: translate(calc(var(--sway) * -1), 15vh) rotate(270deg); }
+  100% { transform: translate(0, -15vh) rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .food-bg span { animation-play-state: paused; }
+}
