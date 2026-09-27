@@ -49,6 +49,10 @@ sends every request that isn't a file in `public/` to it.
 - Each verified recipe has a heart. Pressing it saves the recipe to your
   **Favorites** (a button at the top of Recipes); pressing it again removes it.
   Favorites are private to each account.
+- Pressing a person's name opens their profile: their picture, name and
+  verified recipes. Emails are never shown.
+- On your own profile, **Change profile** lets you pick a picture (cropped to
+  a small square in the browser before upload) and change your name.
 - A new recipe starts as unverified. Only its author and the admin can open it.
 - The admin sees an **Unverified recipes** section at the top of Recipes.
   Pressing **Verify** moves a recipe into the public list.

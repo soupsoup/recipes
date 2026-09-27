@@ -46,3 +46,42 @@ document.addEventListener('submit', async (event) => {
     button.disabled = false;
   }
 });
+
+// Change profile: crop the chosen photo to a 256px square in the browser and
+// send it as a small JPEG, so uploads stay tiny whatever the phone camera made.
+const avatarFile = document.getElementById('avatar-file');
+if (avatarFile) {
+  const SIZE = 256;
+  const hint = document.getElementById('avatar-hint');
+  const preview = document.getElementById('avatar-preview');
+  const data = document.getElementById('avatar-data');
+
+  avatarFile.addEventListener('change', async () => {
+    const file = avatarFile.files[0];
+    if (!file) return;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const side = Math.min(bitmap.width, bitmap.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      canvas.getContext('2d').drawImage(
+        bitmap,
+        (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side,
+        0, 0, SIZE, SIZE,
+      );
+      data.value = canvas.toDataURL('image/jpeg', 0.85);
+      preview.innerHTML = '';
+      const img = new Image();
+      img.className = 'avatar';
+      img.alt = '';
+      img.style.width = img.style.height = '96px';
+      img.src = data.value;
+      preview.append(img);
+      hint.textContent = 'Looks good? Press Save to use this picture.';
+    } catch {
+      data.value = '';
+      hint.textContent = "That file couldn't be opened as a picture. Try a JPEG or PNG photo.";
+    }
+  });
+}

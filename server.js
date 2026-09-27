@@ -14,7 +14,29 @@ function toRecipe(row) {
     author_id: Number(row.author_id),
     verified: Boolean(row.verified),
     favorited: Boolean(row.favorited),
+    authorPerson: {
+      id: Number(row.author_id),
+      name: row.author,
+      avatarVersion: row.author_avatar ? Number(row.author_avatar) : null,
+    },
   };
+}
+
+// Profile pictures arrive as data URLs made by public/app.js (a 256px square).
+// Only real JPEG, PNG or WebP bytes are accepted, whatever the data URL claims.
+const MAX_AVATAR_BYTES = 300 * 1024;
+const IMAGE_SIGNATURES = {
+  'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  'image/png': (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+  'image/webp': (b) => b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP',
+};
+
+function parseAvatar(dataUrl) {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) return null;
+  const bytes = Buffer.from(match[2], 'base64');
+  if (!bytes.length || bytes.length > MAX_AVATAR_BYTES || !IMAGE_SIGNATURES[match[1]](bytes)) return null;
+  return { type: match[1], bytes };
 }
 
 function recipeId(req) {
@@ -28,7 +50,8 @@ function createApp({ db, adminEmail }) {
 
   const app = express();
   app.set('trust proxy', 1);
-  app.use(express.urlencoded({ extended: false }));
+  // Big enough for a profile picture; everything else is far smaller.
+  app.use(express.urlencoded({ extended: false, limit: '600kb' }));
   app.use(express.static(path.join(__dirname, 'public')));
 
   app.use(async (req, res, next) => {
@@ -86,6 +109,7 @@ function createApp({ db, adminEmail }) {
   // $1 is always the signed-in user's id, so each row says whether they favorited it.
   const recipeQuery = `
     SELECT recipes.*, to_char(recipes.created_at, 'YYYY-MM-DD') AS created_on, users.name AS author,
+      ${auth.AVATAR_VERSION} AS author_avatar,
       EXISTS (SELECT 1 FROM favorites f WHERE f.recipe_id = recipes.id AND f.user_id = $1) AS favorited
     FROM recipes JOIN users ON users.id = recipes.author_id`;
   const recipes = async (req, rest, params = []) =>
@@ -190,6 +214,64 @@ function createApp({ db, adminEmail }) {
     const id = recipeId(req);
     if (id) await db.query('DELETE FROM recipes WHERE id = $1', [id]);
     res.redirect('/recipes/unverified');
+  });
+
+  // Profiles show a person's name, picture and verified recipes. Never their email.
+  app.get('/users/:id', async (req, res) => {
+    const id = recipeId(req);
+    const [row] = id ? await db.query(
+      `SELECT id, name, to_char(created_at, 'FMMonth YYYY') AS joined_on, ${auth.AVATAR_VERSION} AS avatar_version
+       FROM users WHERE id = $1`,
+      [id],
+    ) : [];
+    if (!row) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    const person = {
+      id: Number(row.id), name: row.name, joined_on: row.joined_on,
+      avatarVersion: row.avatar_version ? Number(row.avatar_version) : null,
+    };
+    const list = await recipes(req, 'WHERE verified AND author_id = $2 ORDER BY recipes.id DESC', [person.id]);
+    res.send(views.profilePage({ user: req.user, person, recipes: list, isMe: person.id === req.user.id }));
+  });
+
+  app.get('/users/:id/avatar', async (req, res) => {
+    const id = recipeId(req);
+    const [row] = id ? await db.query('SELECT avatar, avatar_type FROM users WHERE id = $1 AND avatar IS NOT NULL', [id]) : [];
+    if (!row || !IMAGE_SIGNATURES[row.avatar_type]) return res.status(404).end();
+    res.set({
+      'Content-Type': row.avatar_type,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': req.query.v ? 'private, max-age=31536000, immutable' : 'private, no-cache',
+    });
+    res.send(Buffer.from(row.avatar));
+  });
+
+  // Change profile: only ever edits the signed-in person's own account.
+  app.get('/profile', (req, res) => {
+    res.send(views.editProfilePage({ user: req.user, notice: req.query.saved ? 'Your profile has been updated.' : '' }));
+  });
+
+  app.post('/profile', async (req, res) => {
+    const name = String(req.body.name || '').trim();
+    const fail = (error) => res.status(400).send(views.editProfilePage({ user: { ...req.user, name: name || req.user.name }, error }));
+    if (!name || name.length > 60) return fail('Please enter a name up to 60 characters.');
+    let picture = null;
+    if (req.body.avatar) {
+      picture = parseAvatar(String(req.body.avatar));
+      if (!picture) return fail("That picture couldn't be used. Try a different JPEG or PNG photo.");
+    }
+    await db.query('UPDATE users SET name = $1 WHERE id = $2', [name, req.user.id]);
+    if (picture) {
+      await db.query(
+        'UPDATE users SET avatar = $1, avatar_type = $2, avatar_updated_at = now() WHERE id = $3',
+        [picture.bytes, picture.type, req.user.id],
+      );
+    }
+    res.redirect(`/users/${req.user.id}`);
+  });
+
+  app.post('/profile/avatar/remove', async (req, res) => {
+    await db.query('UPDATE users SET avatar = NULL, avatar_type = NULL, avatar_updated_at = NULL WHERE id = $1', [req.user.id]);
+    res.redirect('/profile?saved=1');
   });
 
   app.use((req, res) => res.status(404).send(views.notFoundPage({ user: req.user })));
