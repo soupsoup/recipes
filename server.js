@@ -8,7 +8,13 @@ const COOKIE = 'ccr_session';
 
 // Postgres returns BIGINT ids as strings; normalize so comparisons with req.user.id work.
 function toRecipe(row) {
-  return { ...row, id: Number(row.id), author_id: Number(row.author_id), verified: Boolean(row.verified) };
+  return {
+    ...row,
+    id: Number(row.id),
+    author_id: Number(row.author_id),
+    verified: Boolean(row.verified),
+    favorited: Boolean(row.favorited),
+  };
 }
 
 function recipeId(req) {
@@ -77,10 +83,13 @@ function createApp({ db, adminEmail }) {
 
   const requireAdmin = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).send(views.notFoundPage({ user: req.user })));
 
+  // $1 is always the signed-in user's id, so each row says whether they favorited it.
   const recipeQuery = `
-    SELECT recipes.*, to_char(recipes.created_at, 'YYYY-MM-DD') AS created_on, users.name AS author
+    SELECT recipes.*, to_char(recipes.created_at, 'YYYY-MM-DD') AS created_on, users.name AS author,
+      EXISTS (SELECT 1 FROM favorites f WHERE f.recipe_id = recipes.id AND f.user_id = $1) AS favorited
     FROM recipes JOIN users ON users.id = recipes.author_id`;
-  const recipes = async (where, params = []) => (await db.query(`${recipeQuery} ${where}`, params)).map(toRecipe);
+  const recipes = async (req, rest, params = []) =>
+    (await db.query(`${recipeQuery} ${rest}`, [req.user.id, ...params])).map(toRecipe);
 
   app.get('/', (req, res) => res.send(views.homePage({ user: req.user })));
 
@@ -88,18 +97,53 @@ function createApp({ db, adminEmail }) {
     const query = String(req.query.q || '').trim().slice(0, 100);
     const like = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
     const list = query
-      ? await recipes(`WHERE verified
-          AND (title ILIKE $1 ESCAPE '\\' OR ingredients ILIKE $1 ESCAPE '\\')
+      ? await recipes(req, `WHERE verified
+          AND (title ILIKE $2 ESCAPE '\\' OR ingredients ILIKE $2 ESCAPE '\\')
           ORDER BY recipes.id DESC`, [like])
-      : await recipes('WHERE verified ORDER BY recipes.id DESC');
+      : await recipes(req, 'WHERE verified ORDER BY recipes.id DESC');
     const unverifiedCount = isAdmin(req.user)
       ? Number((await db.query('SELECT COUNT(*) AS n FROM recipes WHERE NOT verified'))[0].n)
       : 0;
-    res.send(views.recipesPage({ user: req.user, isAdmin: isAdmin(req.user), recipes: list, unverifiedCount, query }));
+    const [{ n: favoriteCount }] = await db.query(
+      'SELECT COUNT(*) AS n FROM favorites JOIN recipes ON recipes.id = favorites.recipe_id WHERE favorites.user_id = $1 AND recipes.verified',
+      [req.user.id],
+    );
+    res.send(views.recipesPage({
+      user: req.user, isAdmin: isAdmin(req.user), recipes: list, unverifiedCount, query, favoriteCount: Number(favoriteCount),
+    }));
+  });
+
+  app.get('/recipes/favorites', async (req, res) => {
+    const list = await recipes(req, `JOIN favorites fav ON fav.recipe_id = recipes.id AND fav.user_id = $1
+      WHERE verified ORDER BY fav.created_at DESC`);
+    res.send(views.favoritesPage({ user: req.user, recipes: list }));
+  });
+
+  // Sets the heart to the state the button asked for, so double taps can't flip it back.
+  app.post('/recipes/:id/favorite', async (req, res) => {
+    const id = recipeId(req);
+    const want = req.body.favorite === '1';
+    let favorited = false;
+    if (id && want) {
+      // Only verified recipes can be favorited.
+      await db.query(
+        `INSERT INTO favorites (user_id, recipe_id)
+         SELECT $1, id FROM recipes WHERE id = $2 AND verified
+         ON CONFLICT DO NOTHING`,
+        [req.user.id, id],
+      );
+      const [row] = await db.query('SELECT 1 FROM favorites WHERE user_id = $1 AND recipe_id = $2', [req.user.id, id]);
+      favorited = Boolean(row);
+    } else if (id) {
+      await db.query('DELETE FROM favorites WHERE user_id = $1 AND recipe_id = $2', [req.user.id, id]);
+    }
+    if (req.get('x-requested-with') === 'fetch') return res.json({ favorited });
+    const back = String(req.body.back || '');
+    res.redirect(back.startsWith('/') && !back.startsWith('//') ? back : '/recipes');
   });
 
   app.get('/recipes/mine', async (req, res) => {
-    const list = await recipes('WHERE author_id = $1 ORDER BY recipes.id DESC', [req.user.id]);
+    const list = await recipes(req, 'WHERE author_id = $1 ORDER BY recipes.id DESC');
     const notice = req.query.submitted ? 'Thanks! Your recipe will show up in Recipes once it has been verified.' : '';
     res.send(views.myRecipesPage({ user: req.user, recipes: list, notice }));
   });
@@ -123,13 +167,13 @@ function createApp({ db, adminEmail }) {
   });
 
   app.get('/recipes/unverified', requireAdmin, async (req, res) => {
-    const list = await recipes('WHERE NOT verified ORDER BY recipes.id');
+    const list = await recipes(req, 'WHERE NOT verified ORDER BY recipes.id');
     res.send(views.unverifiedPage({ user: req.user, recipes: list }));
   });
 
   app.get('/recipes/:id', async (req, res) => {
     const id = recipeId(req);
-    const [recipe] = id ? await recipes('WHERE recipes.id = $1', [id]) : [];
+    const [recipe] = id ? await recipes(req, 'WHERE recipes.id = $2', [id]) : [];
     // Unverified recipes are visible only to the admin and the person who wrote them.
     const canSee = recipe && (recipe.verified || isAdmin(req.user) || recipe.author_id === req.user.id);
     if (!canSee) return res.status(404).send(views.notFoundPage({ user: req.user }));

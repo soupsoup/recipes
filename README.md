@@ -46,6 +46,9 @@ sends every request that isn't a file in `public/` to it.
   **My recipes**.
 - Recipes has a search bar that matches recipe names and ingredients.
 - My recipes lists everything you've shared, marked verified or waiting.
+- Each verified recipe has a heart. Pressing it saves the recipe to your
+  **Favorites** (a button at the top of Recipes); pressing it again removes it.
+  Favorites are private to each account.
 - A new recipe starts as unverified. Only its author and the admin can open it.
 - The admin sees an **Unverified recipes** section at the top of Recipes.
   Pressing **Verify** moves a recipe into the public list.

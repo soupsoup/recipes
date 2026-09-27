@@ -133,3 +133,45 @@ test('my recipes lists only your own recipes with their status', async () => {
   assert.match(html, /Waiting to be verified/);
   assert.doesNotMatch(html, /Al Salad/);
 });
+
+test('hearts add verified recipes to favorites and take them off again', async () => {
+  const cook = await signup('Fay', 'fay@example.com');
+  const fan = await signup('Gus', 'gus@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+  await post('/recipes', { title: 'Heart Cake', ingredients: 'Cake', steps: 'Bake' }, cook);
+  await post('/recipes', { title: 'Secret Pie', ingredients: 'Pie', steps: 'Bake' }, cook);
+  const mine = await (await get('/recipes/mine', cook)).text();
+  const idOf = (title) => [...mine.matchAll(/href="\/recipes\/(\d+)">([\s\S]*?)<\/a>/g)].find((m) => m[2].includes(title))[1];
+  const cake = idOf('Heart Cake');
+  const pie = idOf('Secret Pie');
+  await post(`/recipes/${cake}/verify`, {}, admin);
+
+  let html = await (await get('/recipes', fan)).text();
+  assert.match(html, new RegExp(`action="/recipes/${cake}/favorite"`), 'verified recipes get a heart');
+  assert.match(html, /aria-pressed="false"/);
+
+  let res = await post(`/recipes/${cake}/favorite`, { favorite: '1', back: '/recipes' }, fan);
+  assert.strictEqual(res.headers.get('location'), '/recipes');
+  res = await post(`/recipes/${cake}/favorite`, { favorite: '1', back: '/recipes' }, fan);
+  html = await (await get('/recipes/favorites', fan)).text();
+  assert.match(html, /Heart Cake/);
+  assert.match(html, /aria-pressed="true"/);
+  assert.match(await (await get('/recipes', fan)).text(), /class="count">1</, 'a second tap on "add" does not double count');
+
+  assert.doesNotMatch(await (await get('/recipes/favorites', cook)).text(), /Heart Cake/, 'favorites are per person');
+
+  res = await post(`/recipes/${pie}/favorite`, { favorite: '1' }, fan);
+  assert.doesNotMatch(await (await get('/recipes/favorites', fan)).text(), /Secret Pie/, 'unverified recipes cannot be favorited');
+
+  res = await fetch(`${base}/recipes/${cake}/favorite`, {
+    method: 'POST',
+    headers: { cookie: fan, 'x-requested-with': 'fetch', 'content-type': 'application/x-www-form-urlencoded' },
+    body: 'favorite=0',
+  });
+  assert.deepStrictEqual(await res.json(), { favorited: false });
+  assert.match(await (await get('/recipes/favorites', fan)).text(), /favorited any recipes yet/);
+
+  res = await post(`/recipes/${cake}/favorite`, { favorite: '1', back: '//evil.example' }, fan);
+  assert.strictEqual(res.headers.get('location'), '/recipes', 'back only allows paths on this site');
+});

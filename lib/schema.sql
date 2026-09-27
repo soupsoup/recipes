@@ -24,3 +24,11 @@ CREATE TABLE IF NOT EXISTS recipes (
 );
 CREATE INDEX IF NOT EXISTS recipes_author_id_idx ON recipes (author_id);
 CREATE INDEX IF NOT EXISTS recipes_verified_idx ON recipes (verified);
+
+CREATE TABLE IF NOT EXISTS favorites (
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, recipe_id)
+);
+CREATE INDEX IF NOT EXISTS favorites_recipe_id_idx ON favorites (recipe_id);
