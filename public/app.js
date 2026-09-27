@@ -71,6 +71,7 @@ if (avatarFile) {
         0, 0, SIZE, SIZE,
       );
       data.value = canvas.toDataURL('image/jpeg', 0.85);
+      document.querySelectorAll('input[name="preset"]').forEach((radio) => { radio.checked = false; });
       preview.innerHTML = '';
       const img = new Image();
       img.className = 'avatar';
@@ -78,10 +79,25 @@ if (avatarFile) {
       img.style.width = img.style.height = '96px';
       img.src = data.value;
       preview.append(img);
-      hint.textContent = 'Looks good? Press Save to use this picture.';
+      hint.textContent = 'Looks good? Press Save to use this photo.';
     } catch {
       data.value = '';
       hint.textContent = "That file couldn't be opened as a picture. Try a JPEG or PNG photo.";
     }
   });
 }
+
+// Picking a food picture shows it in the preview and drops any photo chosen before.
+document.querySelectorAll('input[name="preset"]').forEach((radio) => {
+  radio.addEventListener('change', () => {
+    const preview = document.getElementById('avatar-preview');
+    const big = radio.parentElement.querySelector('.avatar').cloneNode(true);
+    big.style.width = big.style.height = '96px';
+    big.style.fontSize = '56px';
+    preview.replaceChildren(big);
+    document.getElementById('avatar-data').value = '';
+    document.getElementById('avatar-file').value = '';
+    const label = radio.parentElement.querySelector('.preset-label').textContent;
+    document.getElementById('avatar-hint').textContent = `${label} it is! Press Save to use it.`;
+  });
+});

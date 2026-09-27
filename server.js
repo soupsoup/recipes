@@ -3,6 +3,7 @@ const express = require('express');
 const { openDb } = require('./lib/db');
 const auth = require('./lib/auth');
 const views = require('./lib/views');
+const { AVATAR_PRESETS } = require('./lib/presets');
 
 const COOKIE = 'ccr_session';
 
@@ -18,6 +19,7 @@ function toRecipe(row) {
       id: Number(row.author_id),
       name: row.author,
       avatarVersion: row.author_avatar ? Number(row.author_avatar) : null,
+      preset: row.author_preset || null,
     },
   };
 }
@@ -109,7 +111,7 @@ function createApp({ db, adminEmail }) {
   // $1 is always the signed-in user's id, so each row says whether they favorited it.
   const recipeQuery = `
     SELECT recipes.*, to_char(recipes.created_at, 'YYYY-MM-DD') AS created_on, users.name AS author,
-      ${auth.AVATAR_VERSION} AS author_avatar,
+      ${auth.AVATAR_VERSION} AS author_avatar, users.avatar_preset AS author_preset,
       EXISTS (SELECT 1 FROM favorites f WHERE f.recipe_id = recipes.id AND f.user_id = $1) AS favorited
     FROM recipes JOIN users ON users.id = recipes.author_id`;
   const recipes = async (req, rest, params = []) =>
@@ -220,7 +222,7 @@ function createApp({ db, adminEmail }) {
   app.get('/users/:id', async (req, res) => {
     const id = recipeId(req);
     const [row] = id ? await db.query(
-      `SELECT id, name, to_char(created_at, 'FMMonth YYYY') AS joined_on, ${auth.AVATAR_VERSION} AS avatar_version
+      `SELECT id, name, avatar_preset, to_char(created_at, 'FMMonth YYYY') AS joined_on, ${auth.AVATAR_VERSION} AS avatar_version
        FROM users WHERE id = $1`,
       [id],
     ) : [];
@@ -228,6 +230,7 @@ function createApp({ db, adminEmail }) {
     const person = {
       id: Number(row.id), name: row.name, joined_on: row.joined_on,
       avatarVersion: row.avatar_version ? Number(row.avatar_version) : null,
+      preset: row.avatar_preset || null,
     };
     const list = await recipes(req, 'WHERE verified AND author_id = $2 ORDER BY recipes.id DESC', [person.id]);
     res.send(views.profilePage({ user: req.user, person, recipes: list, isMe: person.id === req.user.id }));
@@ -259,18 +262,29 @@ function createApp({ db, adminEmail }) {
       picture = parseAvatar(String(req.body.avatar));
       if (!picture) return fail("That picture couldn't be used. Try a different JPEG or PNG photo.");
     }
+    const preset = String(req.body.preset || '');
+    if (preset && !Object.hasOwn(AVATAR_PRESETS, preset)) return fail('Please pick one of the food pictures.');
     await db.query('UPDATE users SET name = $1 WHERE id = $2', [name, req.user.id]);
+    // A person has one picture at a time: a new photo replaces a food picture and the other way round.
     if (picture) {
       await db.query(
-        'UPDATE users SET avatar = $1, avatar_type = $2, avatar_updated_at = now() WHERE id = $3',
+        'UPDATE users SET avatar = $1, avatar_type = $2, avatar_updated_at = now(), avatar_preset = NULL WHERE id = $3',
         [picture.bytes, picture.type, req.user.id],
+      );
+    } else if (preset) {
+      await db.query(
+        'UPDATE users SET avatar_preset = $1, avatar = NULL, avatar_type = NULL, avatar_updated_at = NULL WHERE id = $2',
+        [preset, req.user.id],
       );
     }
     res.redirect(`/users/${req.user.id}`);
   });
 
   app.post('/profile/avatar/remove', async (req, res) => {
-    await db.query('UPDATE users SET avatar = NULL, avatar_type = NULL, avatar_updated_at = NULL WHERE id = $1', [req.user.id]);
+    await db.query(
+      'UPDATE users SET avatar = NULL, avatar_type = NULL, avatar_updated_at = NULL, avatar_preset = NULL WHERE id = $1',
+      [req.user.id],
+    );
     res.redirect('/profile?saved=1');
   });
 

@@ -36,3 +36,4 @@ CREATE INDEX IF NOT EXISTS favorites_recipe_id_idx ON favorites (recipe_id);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar BYTEA;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_type TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_updated_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_preset TEXT;

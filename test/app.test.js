@@ -235,3 +235,33 @@ test('change profile updates only your own name and picture', async () => {
   assert.doesNotMatch(after, /\/avatar\?v=/);
   assert.match(after, /class="avatar initial"/);
 });
+
+test('food pictures can be picked, and a photo or another pick replaces them', async () => {
+  const me = await signup('Rae', 'rae@example.com');
+  const viewer = await signup('Sol', 'sol@example.com');
+
+  let html = await (await get('/profile', me)).text();
+  for (const food of ['donut', 'spaghetti', 'pizza', 'sandwich', 'onion', 'apple', 'cheeseburger', 'orange', 'cupcake', 'cake', 'lollipop', 'chocolate', 'pineapple']) {
+    assert.match(html, new RegExp(`name="preset" value="${food}"`), `${food} is offered`);
+  }
+
+  let res = await post('/profile', { name: 'Rae', preset: 'pizza' }, me);
+  const profileUrl = res.headers.get('location');
+  html = await (await get(profileUrl, viewer)).text();
+  assert.match(html, /class="avatar preset"[^>]*>🍕</);
+  assert.match(await (await get('/profile', me)).text(), /value="pizza" checked/);
+
+  res = await post('/profile', { name: 'Rae', preset: 'poison' }, me);
+  assert.strictEqual(res.status, 400, 'only the listed foods are allowed');
+
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  await post('/profile', { name: 'Rae', avatar: `data:image/png;base64,${png}` }, me);
+  html = await (await get(profileUrl, viewer)).text();
+  assert.doesNotMatch(html, /avatar preset/, 'a photo replaces the food picture');
+  assert.match(html, /\/avatar\?v=\d+/);
+
+  await post('/profile', { name: 'Rae', preset: 'donut' }, me);
+  html = await (await get(profileUrl, viewer)).text();
+  assert.match(html, />🍩</);
+  assert.doesNotMatch(html, /\/avatar\?v=\d+/, 'a food pick replaces the photo');
+});

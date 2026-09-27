@@ -51,8 +51,9 @@ sends every request that isn't a file in `public/` to it.
   Favorites are private to each account.
 - Pressing a person's name opens their profile: their picture, name and
   verified recipes. Emails are never shown.
-- On your own profile, **Change profile** lets you pick a picture (cropped to
-  a small square in the browser before upload) and change your name.
+- On your own profile, **Change profile** lets you pick one of 13 food
+  pictures or upload a photo (cropped to a small square in the browser before
+  upload), and change your name. The food choices live in `lib/presets.js`.
 - A new recipe starts as unverified. Only its author and the admin can open it.
 - The admin sees an **Unverified recipes** section at the top of Recipes.
   Pressing **Verify** moves a recipe into the public list.
