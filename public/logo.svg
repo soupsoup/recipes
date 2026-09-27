@@ -11,7 +11,6 @@
       <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity="0.18"/>
     </filter>
   </defs>
-  <rect width="1110" height="540" fill="#FFF8F0"/>
   <!-- whole fork as one shape: handle, neck, four shorter tines -->
   <path filter="url(#shadow)" fill="url(#steel)" stroke="#4F565E" stroke-width="5" stroke-linejoin="round"
     d="M90 230 L470 230 C550 230, 560 92, 650 92

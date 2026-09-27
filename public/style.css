@@ -8,6 +8,8 @@
   --accent: #E4572E;
   --line: #E8E1D8;
   --danger: #B3261E;
+  --header: #DCE6F2;
+  --header-line: #C2D0E3;
 }
 
 * { box-sizing: border-box; }
@@ -28,7 +30,8 @@ a { color: var(--steel-dark); }
   justify-content: space-between;
   gap: 12px;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--line);
+  background: var(--header);
+  border-bottom: 1px solid var(--header-line);
 }
 .logo img { display: block; height: 96px; width: auto; }
 .signout { display: flex; align-items: center; gap: 10px; margin: 0; }
@@ -140,9 +143,8 @@ input:focus, textarea:focus { outline: 2px solid var(--steel); border-color: var
 .pill.ok { background: #EAF4EA; color: #256029; }
 .list .pill { align-self: flex-start; margin-bottom: 4px; }
 
-/* Main menu: medium dark blue page under the cream header */
+/* Main menu: medium dark blue page under the header */
 body.home { background: #2B4C7E; min-height: 100vh; }
-body.home .top { background: var(--bg); }
 body.home .welcome h1 { color: #FFFFFF; }
 body.home .welcome .sub { color: #D3DEEF; }
 body.home .welcome .sub strong { color: #FFFFFF; }
