@@ -349,3 +349,89 @@ test('authors can edit their recipes, and edits to verified recipes are reviewed
   await post(`/recipes/${stew}/edit`, { title: 'Admin Stew v2', ingredients: 'Stew', steps: 'Cook' }, admin);
   assert.match(await (await get('/recipes', other)).text(), /Admin Stew v2/);
 });
+
+test('comments and replies work like YouTube, with the right people allowed to delete', async () => {
+  const chef = await signup('Yara', 'yara@example.com');
+  const fan = await signup('Zed', 'zed@example.com');
+  const troll = await signup('Tom', 'tom@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+  await post('/recipes', { title: 'Yara Curry', ingredients: 'Curry', steps: 'Cook' }, chef);
+  const mine = await (await get('/recipes/mine', chef)).text();
+  const id = [...mine.matchAll(/href="\/recipes\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g)].find((m) => m[2].includes('Yara Curry'))[1];
+
+  // No comments until the recipe is verified.
+  assert.strictEqual((await post(`/recipes/${id}/comments`, { body: 'Early!' }, fan)).status, 404);
+  await post(`/recipes/${id}/verify`, {}, admin);
+
+  let res = await post(`/recipes/${id}/comments`, { body: 'This looks <b>amazing</b>!' }, fan);
+  assert.match(res.headers.get('location'), new RegExp(`^/recipes/${id}#comment-\\d+$`));
+  const commentId = res.headers.get('location').match(/comment-(\d+)/)[1];
+  await post(`/recipes/${id}/comments`, { body: 'first!!' }, troll);
+
+  let html = await (await get(`/recipes/${id}`, chef)).text();
+  assert.match(html, /2 Comments/);
+  assert.match(html, /This looks &lt;b&gt;amazing&lt;\/b&gt;!/, 'comment text is escaped');
+  assert.match(html, /just now/);
+  assert.ok(html.indexOf('first!!') < html.indexOf('This looks'), 'newest comments first');
+
+  // Replies join the top-level thread; replying to a reply adds an @mention and stays in the same thread.
+  res = await post(`/recipes/${id}/comments`, { body: 'Thank you!', parent_id: commentId }, chef);
+  assert.match(res.headers.get('location'), new RegExp(`\\?thread=${commentId}#comment-`));
+  html = await (await get(`/recipes/${id}?thread=${commentId}`, fan)).text();
+  assert.match(html, /1 reply/);
+  assert.match(html, /<details class="replies" open>/);
+  assert.match(html, /<span class="creator">Chef<\/span>/, 'the recipe author is marked like a YouTube creator');
+  assert.match(html, /@Yara <\/textarea>/, 'reply to a reply is prefilled with an @mention');
+  const lastIdBefore = (page, text) => [...page.slice(0, page.indexOf(text)).matchAll(/id="comment-(\d+)"/g)].pop()[1];
+  const replyId = lastIdBefore(html, 'Thank you!');
+  await post(`/recipes/${id}/comments`, { body: 'nested?', parent_id: replyId }, fan);
+  assert.doesNotMatch(await (await get(`/recipes/${id}`, fan)).text(), /nested\?/, 'replies can only hang off top-level comments');
+
+  // Deleting: not someone else's comment, but yes your own, the chef on their recipe, and the admin.
+  const trollComment = lastIdBefore(await (await get(`/recipes/${id}`, troll)).text(), 'first!!');
+  assert.strictEqual((await post(`/comments/${commentId}/delete`, {}, troll)).status, 404);
+  assert.doesNotMatch(
+    (await (await get(`/recipes/${id}`, troll)).text()).split(`id="comment-${commentId}"`)[1].split('class="thread"')[0],
+    /\/delete"/,
+    'no Delete button on other people\'s comments',
+  );
+  await post(`/comments/${trollComment}/delete`, {}, chef);
+  html = await (await get(`/recipes/${id}`, fan)).text();
+  assert.doesNotMatch(html, /first!!/);
+  await post(`/comments/${commentId}/delete`, {}, fan);
+  html = await (await get(`/recipes/${id}`, fan)).text();
+  assert.doesNotMatch(html, /This looks|Thank you!/, 'deleting a comment removes its replies too');
+  assert.match(html, /0 Comments/);
+});
+
+test('the recipe creator can turn comments off and back on', async () => {
+  const chef = await signup('Abe', 'abe@example.com');
+  const fan = await signup('Bea', 'bea@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+  await post('/recipes', { title: 'Abe Ramen', ingredients: 'Noodles', steps: 'Boil' }, chef);
+  const mine = await (await get('/recipes/mine', chef)).text();
+  const id = [...mine.matchAll(/href="\/recipes\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g)].find((m) => m[2].includes('Abe Ramen'))[1];
+  await post(`/recipes/${id}/verify`, {}, admin);
+  await post(`/recipes/${id}/comments`, { body: 'Yum ramen' }, fan);
+
+  assert.match(await (await get(`/recipes/${id}`, chef)).text(), />Turn off comments</);
+  assert.doesNotMatch(await (await get(`/recipes/${id}`, fan)).text(), /Turn off comments/, 'only the creator sees the switch');
+  assert.strictEqual((await post(`/recipes/${id}/comments/toggle`, { off: '1' }, fan)).status, 404, 'others cannot flip it');
+  assert.strictEqual((await post(`/recipes/${id}/comments/toggle`, { off: '1' }, admin)).status, 404);
+
+  await post(`/recipes/${id}/comments/toggle`, { off: '1' }, chef);
+  let html = await (await get(`/recipes/${id}`, fan)).text();
+  assert.match(html, /Comments are turned off\./);
+  assert.doesNotMatch(html, /Yum ramen/, 'existing comments are hidden');
+  assert.doesNotMatch(html, /Add a comment/);
+  await post(`/recipes/${id}/comments`, { body: 'sneaky' }, fan);
+  assert.match(await (await get(`/recipes/${id}`, chef)).text(), />Turn on comments</);
+
+  await post(`/recipes/${id}/comments/toggle`, { off: '0' }, chef);
+  html = await (await get(`/recipes/${id}`, fan)).text();
+  assert.match(html, /Yum ramen/, 'turning comments back on brings the old ones back');
+  assert.doesNotMatch(html, /sneaky/, 'nothing could be posted while comments were off');
+  assert.match(html, /1 Comment</);
+});

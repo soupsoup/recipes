@@ -16,6 +16,7 @@ function toRecipe(row) {
     verified: Boolean(row.verified),
     favorited: Boolean(row.favorited),
     photoVersion: row.photo_version ? Number(row.photo_version) : null,
+    commentsOff: Boolean(row.comments_off),
     authorPerson: {
       id: Number(row.author_id),
       name: row.author,
@@ -123,6 +124,7 @@ function createApp({ db, adminEmail }) {
   // $1 is always the signed-in user's id, so each row says whether they favorited it.
   const recipeQuery = `
     SELECT recipes.id, recipes.title, recipes.ingredients, recipes.steps, recipes.author_id, recipes.verified,
+      recipes.comments_off,
       to_char(recipes.created_at, 'YYYY-MM-DD') AS created_on, users.name AS author,
       CASE WHEN recipes.photo IS NULL THEN NULL
         ELSE floor(extract(epoch FROM recipes.photo_updated_at) * 1000)::bigint END AS photo_version,
@@ -228,7 +230,84 @@ function createApp({ db, adminEmail }) {
     const notice = req.query.edited
       ? (recipe.verified ? 'Your changes are saved.' : 'Your changes are saved. They will show in Recipes once they have been verified.')
       : '';
-    res.send(views.recipePage({ user: req.user, isAdmin: isAdmin(req.user), recipe, notice }));
+    const openThread = Number(req.query.thread) || null;
+    // When the creator turns comments off they are hidden, not deleted.
+    const comments = recipe.verified && !recipe.commentsOff ? (await db.query(
+      `SELECT comments.id, comments.parent_id, comments.user_id, comments.body,
+         extract(epoch FROM now() - comments.created_at) AS age_seconds,
+         users.name, users.avatar_preset, ${auth.AVATAR_VERSION} AS avatar_version
+       FROM comments JOIN users ON users.id = comments.user_id
+       WHERE comments.recipe_id = $1
+       -- Newest comments first; replies oldest first under their comment, like YouTube.
+       ORDER BY CASE WHEN comments.parent_id IS NULL THEN comments.created_at END DESC NULLS LAST,
+                comments.created_at ASC`,
+      [recipe.id],
+    )).map((c) => ({
+      id: Number(c.id),
+      parent_id: c.parent_id ? Number(c.parent_id) : null,
+      user_id: Number(c.user_id),
+      body: c.body,
+      age_seconds: Number(c.age_seconds),
+      open: c.parent_id && Number(c.parent_id) === openThread,
+      author: {
+        id: Number(c.user_id), name: c.name, preset: c.avatar_preset,
+        avatarVersion: c.avatar_version ? Number(c.avatar_version) : null,
+      },
+    })) : [];
+    const canModerate = isAdmin(req.user) || recipe.author_id === req.user.id;
+    res.send(views.recipePage({ user: req.user, isAdmin: isAdmin(req.user), recipe, notice, comments, canModerate }));
+  });
+
+  // Comments and replies: anyone signed in can comment on a verified recipe.
+  app.post('/recipes/:id/comments', async (req, res) => {
+    const id = recipeId(req);
+    const [recipe] = id ? await db.query('SELECT id, comments_off FROM recipes WHERE id = $1 AND verified', [id]) : [];
+    if (!recipe) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    if (recipe.comments_off) return res.redirect(`/recipes/${id}#comments`);
+    const body = String(req.body.body || '').trim().slice(0, 1000);
+    if (!body) return res.redirect(`/recipes/${id}#comments`);
+    let parentId = null;
+    if (req.body.parent_id) {
+      // Replies must belong to a top-level comment on this same recipe.
+      const [parent] = await db.query(
+        'SELECT id FROM comments WHERE id = $1 AND recipe_id = $2 AND parent_id IS NULL',
+        [Number(req.body.parent_id) || 0, id],
+      );
+      if (!parent) return res.redirect(`/recipes/${id}#comments`);
+      parentId = Number(parent.id);
+    }
+    const [comment] = await db.query(
+      'INSERT INTO comments (recipe_id, user_id, parent_id, body) VALUES ($1, $2, $3, $4) RETURNING id',
+      [id, req.user.id, parentId, body],
+    );
+    res.redirect(`/recipes/${id}${parentId ? `?thread=${parentId}` : ''}#comment-${comment.id}`);
+  });
+
+  // Only the recipe's creator can turn its comments off or back on.
+  app.post('/recipes/:id/comments/toggle', async (req, res) => {
+    const id = recipeId(req);
+    const [row] = id ? await db.query(
+      'UPDATE recipes SET comments_off = $1 WHERE id = $2 AND author_id = $3 RETURNING id',
+      [req.body.off === '1', id, req.user.id],
+    ) : [];
+    if (!row) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    res.redirect(`/recipes/${id}#comments`);
+  });
+
+  // The commenter, the recipe's author or the admin can delete a comment (and its replies).
+  app.post('/comments/:id/delete', async (req, res) => {
+    const id = recipeId(req);
+    const [comment] = id ? await db.query(
+      `SELECT comments.id, comments.user_id, comments.recipe_id, comments.parent_id, recipes.author_id
+       FROM comments JOIN recipes ON recipes.id = comments.recipe_id WHERE comments.id = $1`,
+      [id],
+    ) : [];
+    if (!comment) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    const allowed = Number(comment.user_id) === req.user.id || Number(comment.author_id) === req.user.id || isAdmin(req.user);
+    if (!allowed) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    await db.query('DELETE FROM comments WHERE id = $1', [id]);
+    const thread = comment.parent_id ? `?thread=${Number(comment.parent_id)}` : '';
+    res.redirect(`/recipes/${Number(comment.recipe_id)}${thread}#comments`);
   });
 
   // Editing: only the person who wrote the recipe. A verified recipe goes back to be

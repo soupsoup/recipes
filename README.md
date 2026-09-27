@@ -51,6 +51,11 @@ sends every request that isn't a file in `public/` to it.
 - Only the person who made a recipe can edit it (**Edit recipe** on the recipe,
   or **Edit** in My recipes). Editing a verified recipe sends it back to be
   verified, unless the admin edited their own recipe.
+- Verified recipes have a YouTube-style comment section: newest comments first,
+  **Reply** under each comment, and replies tucked under "N replies". The recipe's
+  author is labelled **Chef**. People can delete their own comments; the recipe's
+  author and the admin can delete any comment on it. The author can also
+  **Turn off comments**, which hides them (without deleting) until turned back on.
 - My recipes lists everything you've shared, marked verified or waiting.
 - Each verified recipe has a heart. Pressing it saves the recipe to your
   **Favorites** (a button at the top of Recipes); pressing it again removes it.

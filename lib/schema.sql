@@ -40,3 +40,17 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_preset TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS photo BYTEA;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS photo_type TEXT;
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS photo_updated_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS comments (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- Replies point at the top-level comment they belong to, one level deep like YouTube.
+  parent_id BIGINT REFERENCES comments(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS comments_recipe_id_idx ON comments (recipe_id);
+CREATE INDEX IF NOT EXISTS comments_parent_id_idx ON comments (parent_id);
+CREATE INDEX IF NOT EXISTS comments_user_id_idx ON comments (user_id);
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS comments_off BOOLEAN NOT NULL DEFAULT false;

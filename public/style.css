@@ -297,3 +297,54 @@ body.home .welcome h1, body.home .welcome .sub { text-shadow: 0 2px 6px rgba(10,
 .recipe-title-row h1 { flex: 1; min-width: 200px; }
 .recipe-card .edit-link { position: relative; z-index: 1; flex: none; margin-right: 16px; }
 .warning { background: #FFF1D6; color: #7A5200; padding: 10px 12px; border-radius: 8px; }
+
+/* Comments, YouTube style */
+.comments { margin-top: 24px; }
+.comments h2 { margin: 0 0 16px; }
+.comment-form { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 24px; }
+.comment-form.reply-form { margin: 10px 0 4px; }
+.comment-input { flex: 1; min-width: 0; }
+.comment-input textarea {
+  border: 0; border-bottom: 1px solid #9AA8BD; border-radius: 0; background: transparent;
+  padding: 6px 0; resize: vertical; min-height: 34px;
+}
+.comment-input textarea:focus { outline: none; border-bottom: 2px solid var(--navy); }
+.comment-buttons { display: flex; justify-content: flex-end; margin-top: 8px; }
+.comment-list { display: flex; flex-direction: column; gap: 18px; }
+.comment { display: flex; gap: 12px; align-items: flex-start; }
+.comment-avatar { flex: none; line-height: 0; }
+.comment-main { flex: 1; min-width: 0; }
+.comment-meta { margin: 0; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 0.9rem; }
+.comment-name { font-weight: 700; color: var(--ink); text-decoration: none; }
+.comment-name:hover { text-decoration: underline; }
+.creator { background: #E3EAF5; color: var(--navy); border-radius: 999px; padding: 0 8px; font-size: 0.75rem; font-weight: 700; }
+.comment-body { margin: 2px 0 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment-actions { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.comment-actions form { margin: 0; }
+.reply-toggle { flex: 1 1 100%; }
+.reply-toggle > summary, .small-link { font-size: 0.85rem; font-weight: 700; color: var(--muted); cursor: pointer; }
+.reply-toggle > summary { list-style: none; display: inline-block; padding: 4px 10px; margin-left: -10px; border-radius: 999px; }
+.reply-toggle > summary::-webkit-details-marker { display: none; }
+.reply-toggle > summary:hover { background: #E3EAF5; }
+.reply-toggle[open] > summary { color: var(--navy); }
+.comment-actions { position: relative; }
+.comment-actions > form { position: absolute; left: 70px; top: 4px; }
+.small-link { text-decoration: none; }
+.small-link:hover { color: var(--danger); }
+.replies { margin: 6px 0 0 52px; }
+.replies > summary {
+  list-style: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  color: #1A5FB4; font-weight: 700; padding: 6px 12px; margin-left: -12px; border-radius: 999px;
+}
+.replies > summary::-webkit-details-marker { display: none; }
+.replies > summary:hover { background: #DCE8F8; }
+.replies[open] .chev { display: inline-block; transform: rotate(180deg); }
+.replies .comment { margin-top: 14px; }
+@media (max-width: 480px) {
+  .replies { margin-left: 40px; }
+}
+
+.comments-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.comments-head h2 { margin: 0; }
+.comments-toggle { margin: 0; }
+.comments-off { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; color: var(--muted); text-align: center; }
