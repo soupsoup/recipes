@@ -146,3 +146,5 @@ body.home .top { background: var(--bg); }
 body.home .welcome h1 { color: #FFFFFF; }
 body.home .welcome .sub { color: #D3DEEF; }
 body.home .welcome .sub strong { color: #FFFFFF; }
+body.home .menu .btn { background: #1A3157; border-color: #4E6E9E; color: #FFFFFF; }
+body.home .menu .btn:hover { background: #233F6E; border-color: #7F9CC8; }
