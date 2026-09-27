@@ -15,6 +15,7 @@ function toRecipe(row) {
     author_id: Number(row.author_id),
     verified: Boolean(row.verified),
     favorited: Boolean(row.favorited),
+    photoVersion: row.photo_version ? Number(row.photo_version) : null,
     authorPerson: {
       id: Number(row.author_id),
       name: row.author,
@@ -24,21 +25,32 @@ function toRecipe(row) {
   };
 }
 
-// Profile pictures arrive as data URLs made by public/app.js (a 256px square).
-// Only real JPEG, PNG or WebP bytes are accepted, whatever the data URL claims.
+// Pictures arrive as data URLs made by public/app.js: a 256px square for profiles,
+// at most 1000px wide for recipe photos. Only real JPEG, PNG or WebP bytes are
+// accepted, whatever the data URL claims.
 const MAX_AVATAR_BYTES = 300 * 1024;
+const MAX_PHOTO_BYTES = 600 * 1024;
 const IMAGE_SIGNATURES = {
   'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
   'image/png': (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
   'image/webp': (b) => b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP',
 };
 
-function parseAvatar(dataUrl) {
+function parseImage(dataUrl, maxBytes) {
   const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
   if (!match) return null;
   const bytes = Buffer.from(match[2], 'base64');
-  if (!bytes.length || bytes.length > MAX_AVATAR_BYTES || !IMAGE_SIGNATURES[match[1]](bytes)) return null;
+  if (!bytes.length || bytes.length > maxBytes || !IMAGE_SIGNATURES[match[1]](bytes)) return null;
   return { type: match[1], bytes };
+}
+
+function sendImage(req, res, bytes, type) {
+  res.set({
+    'Content-Type': type,
+    'X-Content-Type-Options': 'nosniff',
+    'Cache-Control': req.query.v ? 'private, max-age=31536000, immutable' : 'private, no-cache',
+  });
+  res.send(Buffer.from(bytes));
 }
 
 function recipeId(req) {
@@ -52,8 +64,8 @@ function createApp({ db, adminEmail }) {
 
   const app = express();
   app.set('trust proxy', 1);
-  // Big enough for a profile picture; everything else is far smaller.
-  app.use(express.urlencoded({ extended: false, limit: '600kb' }));
+  // Big enough for a recipe photo; everything else is far smaller.
+  app.use(express.urlencoded({ extended: false, limit: '1mb' }));
   app.use(express.static(path.join(__dirname, 'public')));
 
   app.use(async (req, res, next) => {
@@ -110,7 +122,10 @@ function createApp({ db, adminEmail }) {
 
   // $1 is always the signed-in user's id, so each row says whether they favorited it.
   const recipeQuery = `
-    SELECT recipes.*, to_char(recipes.created_at, 'YYYY-MM-DD') AS created_on, users.name AS author,
+    SELECT recipes.id, recipes.title, recipes.ingredients, recipes.steps, recipes.author_id, recipes.verified,
+      to_char(recipes.created_at, 'YYYY-MM-DD') AS created_on, users.name AS author,
+      CASE WHEN recipes.photo IS NULL THEN NULL
+        ELSE floor(extract(epoch FROM recipes.photo_updated_at) * 1000)::bigint END AS photo_version,
       ${auth.AVATAR_VERSION} AS author_avatar, users.avatar_preset AS author_preset,
       EXISTS (SELECT 1 FROM favorites f WHERE f.recipe_id = recipes.id AND f.user_id = $1) AS favorited
     FROM recipes JOIN users ON users.id = recipes.author_id`;
@@ -181,13 +196,20 @@ function createApp({ db, adminEmail }) {
       title: (req.body.title || '').trim(),
       ingredients: (req.body.ingredients || '').trim(),
       steps: (req.body.steps || '').trim(),
+      photo: String(req.body.photo || ''),
     };
-    if (!values.title || !values.ingredients || !values.steps) {
-      return res.status(400).send(views.newRecipePage({ user: req.user, error: 'Please fill in every field.', values }));
+    const fail = (error) => res.status(400).send(views.newRecipePage({ user: req.user, error, values }));
+    if (!values.title || !values.ingredients || !values.steps) return fail('Please fill in every field.');
+    // The photo is optional, and goes through verification along with the rest of the recipe.
+    const photo = values.photo ? parseImage(values.photo, MAX_PHOTO_BYTES) : null;
+    if (values.photo && !photo) {
+      values.photo = '';
+      return fail("That photo couldn't be used. Try a different JPEG or PNG photo.");
     }
     await db.query(
-      'INSERT INTO recipes (title, ingredients, steps, author_id) VALUES ($1, $2, $3, $4)',
-      [values.title, values.ingredients, values.steps, req.user.id],
+      `INSERT INTO recipes (title, ingredients, steps, author_id, photo, photo_type, photo_updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $5::bytea IS NULL THEN NULL ELSE now() END)`,
+      [values.title, values.ingredients, values.steps, req.user.id, photo?.bytes ?? null, photo?.type ?? null],
     );
     res.redirect('/recipes/mine?submitted=1');
   });
@@ -204,6 +226,18 @@ function createApp({ db, adminEmail }) {
     const canSee = recipe && (recipe.verified || isAdmin(req.user) || recipe.author_id === req.user.id);
     if (!canSee) return res.status(404).send(views.notFoundPage({ user: req.user }));
     res.send(views.recipePage({ user: req.user, isAdmin: isAdmin(req.user), recipe }));
+  });
+
+  // Same visibility rule as the recipe page itself.
+  app.get('/recipes/:id/photo', async (req, res) => {
+    const id = recipeId(req);
+    const [row] = id ? await db.query(
+      'SELECT photo, photo_type, verified, author_id FROM recipes WHERE id = $1 AND photo IS NOT NULL',
+      [id],
+    ) : [];
+    const canSee = row && (row.verified || isAdmin(req.user) || Number(row.author_id) === req.user.id);
+    if (!canSee || !IMAGE_SIGNATURES[row.photo_type]) return res.status(404).end();
+    sendImage(req, res, row.photo, row.photo_type);
   });
 
   app.post('/recipes/:id/verify', requireAdmin, async (req, res) => {
@@ -240,12 +274,7 @@ function createApp({ db, adminEmail }) {
     const id = recipeId(req);
     const [row] = id ? await db.query('SELECT avatar, avatar_type FROM users WHERE id = $1 AND avatar IS NOT NULL', [id]) : [];
     if (!row || !IMAGE_SIGNATURES[row.avatar_type]) return res.status(404).end();
-    res.set({
-      'Content-Type': row.avatar_type,
-      'X-Content-Type-Options': 'nosniff',
-      'Cache-Control': req.query.v ? 'private, max-age=31536000, immutable' : 'private, no-cache',
-    });
-    res.send(Buffer.from(row.avatar));
+    sendImage(req, res, row.avatar, row.avatar_type);
   });
 
   // Change profile: only ever edits the signed-in person's own account.
@@ -259,7 +288,7 @@ function createApp({ db, adminEmail }) {
     if (!name || name.length > 60) return fail('Please enter a name up to 60 characters.');
     let picture = null;
     if (req.body.avatar) {
-      picture = parseAvatar(String(req.body.avatar));
+      picture = parseImage(String(req.body.avatar), MAX_AVATAR_BYTES);
       if (!picture) return fail("That picture couldn't be used. Try a different JPEG or PNG photo.");
     }
     const preset = String(req.body.preset || '');

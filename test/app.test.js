@@ -265,3 +265,37 @@ test('food pictures can be picked, and a photo or another pick replaces them', a
   assert.match(html, />🍩</);
   assert.doesNotMatch(html, /\/avatar\?v=\d+/, 'a food pick replaces the photo');
 });
+
+test('recipes can have a photo that follows the same visibility as the recipe', async () => {
+  const cook = await signup('Uma', 'uma@example.com');
+  const other = await signup('Val', 'val@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
+
+  let res = await post('/recipes', {
+    title: 'Photo Pie', ingredients: 'Pie', steps: 'Bake', photo: `data:image/jpeg;base64,${jpeg.toString('base64')}`,
+  }, cook);
+  assert.strictEqual(res.status, 302);
+  const mine = await (await get('/recipes/mine', cook)).text();
+  const [, id, version] = mine.match(/src="\/recipes\/(\d+)\/photo\?v=(\d+)"/);
+
+  assert.strictEqual((await get(`/recipes/${id}/photo?v=${version}`, cook)).status, 200, 'the author sees it');
+  assert.strictEqual((await get(`/recipes/${id}/photo`, other)).status, 404, 'others wait for verification');
+  const pending = await (await get('/recipes/unverified', admin)).text();
+  assert.match(pending, new RegExp(`/recipes/${id}/photo`), 'the admin sees the photo while reviewing');
+
+  await post(`/recipes/${id}/verify`, {}, admin);
+  res = await get(`/recipes/${id}/photo?v=${version}`, other);
+  assert.strictEqual(res.headers.get('content-type'), 'image/jpeg');
+  assert.ok(Buffer.from(await res.arrayBuffer()).equals(jpeg));
+  assert.match(await (await get(`/recipes/${id}`, other)).text(), /class="recipe-photo"/);
+
+  const fake = Buffer.from('<html>not a photo</html>').toString('base64');
+  res = await post('/recipes', { title: 'Bad', ingredients: 'x', steps: 'y', photo: `data:image/jpeg;base64,${fake}` }, cook);
+  assert.strictEqual(res.status, 400);
+
+  res = await post('/recipes', { title: 'No Photo Soup', ingredients: 'Water', steps: 'Boil' }, cook);
+  assert.strictEqual(res.status, 302, 'the photo is optional');
+  assert.match(await (await get('/recipes/new', cook)).text(), />Upload photo\s*</);
+});

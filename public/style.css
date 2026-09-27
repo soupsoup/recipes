@@ -277,3 +277,17 @@ body.home .welcome h1, body.home .welcome .sub { text-shadow: 0 2px 6px rgba(10,
 .preset-option:has(input:focus-visible) { outline: 2px solid var(--navy-hover); outline-offset: 2px; }
 .preset-label { font-size: 0.8rem; color: var(--muted); text-align: center; }
 .upload-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* Recipe photos */
+.thumb { flex: none; width: 72px; height: 72px; margin-left: 12px; border-radius: 10px; object-fit: cover; background: var(--bg); }
+.thumb.empty { display: grid; place-items: center; font-size: 30px; opacity: 0.55; }
+.recipe-photo { display: block; width: 100%; max-height: 420px; object-fit: cover; border-radius: 12px; margin: 0 0 16px; }
+.photo-field { display: flex; flex-direction: column; gap: 8px; }
+.field-label { font-weight: 600; }
+.photo-preview img { display: block; max-width: 100%; max-height: 260px; border-radius: 12px; }
+.photo-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.photo-field .hint { margin: 0; }
+@media (max-width: 480px) {
+  .thumb { width: 60px; height: 60px; }
+}
+.recipe-card .thumb + .card-body { padding-left: 12px; }

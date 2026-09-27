@@ -45,6 +45,9 @@ sends every request that isn't a file in `public/` to it.
 - The home screen has three options: **Recipes**, **Create recipe** and
   **My recipes**.
 - Recipes has a search bar that matches recipe names and ingredients.
+- Create recipe has an optional **Upload photo** button. The browser shrinks
+  the photo to at most 1000px before upload, and the photo follows the same
+  rules as its recipe: only the author and the admin see it until it's verified.
 - My recipes lists everything you've shared, marked verified or waiting.
 - Each verified recipe has a heart. Pressing it saves the recipe to your
   **Favorites** (a button at the top of Recipes); pressing it again removes it.

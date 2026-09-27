@@ -101,3 +101,52 @@ document.querySelectorAll('input[name="preset"]').forEach((radio) => {
     document.getElementById('avatar-hint').textContent = `${label} it is! Press Save to use it.`;
   });
 });
+
+// Create recipe: shrink the chosen photo to at most 1000px wide before it's sent,
+// so a big phone photo becomes a quick upload.
+const photoFile = document.getElementById('photo-file');
+if (photoFile) {
+  const MAX_SIDE = 1000;
+  const MAX_CHARS = 700 * 1024; // keeps the upload under the server's limit
+  const preview = document.getElementById('photo-preview');
+  const data = document.getElementById('photo-data');
+  const hint = document.getElementById('photo-hint');
+  const remove = document.getElementById('photo-remove');
+
+  photoFile.addEventListener('change', async () => {
+    const file = photoFile.files[0];
+    if (!file) return;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      let url = canvas.toDataURL('image/jpeg', 0.82);
+      for (const quality of [0.7, 0.55]) {
+        if (url.length <= MAX_CHARS) break;
+        url = canvas.toDataURL('image/jpeg', quality);
+      }
+      data.value = url;
+      const img = new Image();
+      img.alt = 'Your recipe photo';
+      img.src = url;
+      preview.replaceChildren(img);
+      preview.hidden = false;
+      remove.hidden = false;
+      hint.textContent = 'Looking tasty! It will be shown with your recipe.';
+    } catch {
+      hint.textContent = "That file couldn't be opened as a photo. Try a JPEG or PNG.";
+    }
+    photoFile.value = '';
+  });
+
+  remove.addEventListener('click', () => {
+    data.value = '';
+    preview.replaceChildren();
+    preview.hidden = true;
+    remove.hidden = true;
+    hint.textContent = 'Show everyone what your dish looks like.';
+  });
+}
