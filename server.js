@@ -73,12 +73,23 @@ function createApp({ dbFile, adminEmail }) {
   app.get('/', (req, res) => res.send(views.homePage({ user: req.user })));
 
   app.get('/recipes', (req, res) => {
-    const recipes = db.prepare(`${recipeQuery} WHERE verified = 1 ORDER BY recipes.id DESC`).all();
+    const query = String(req.query.q || '').trim().slice(0, 100);
+    const like = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
+    const recipes = query
+      ? db.prepare(`${recipeQuery} WHERE verified = 1
+          AND (title LIKE ? ESCAPE '\\' OR ingredients LIKE ? ESCAPE '\\')
+          ORDER BY recipes.id DESC`).all(like, like)
+      : db.prepare(`${recipeQuery} WHERE verified = 1 ORDER BY recipes.id DESC`).all();
     const unverifiedCount = isAdmin(req.user)
       ? db.prepare('SELECT COUNT(*) AS n FROM recipes WHERE verified = 0').get().n
       : 0;
-    const notice = req.query.submitted ? 'Thanks! Your recipe will show up here once it has been verified.' : '';
-    res.send(views.recipesPage({ user: req.user, isAdmin: isAdmin(req.user), recipes, unverifiedCount, notice }));
+    res.send(views.recipesPage({ user: req.user, isAdmin: isAdmin(req.user), recipes, unverifiedCount, query }));
+  });
+
+  app.get('/recipes/mine', (req, res) => {
+    const recipes = db.prepare(`${recipeQuery} WHERE author_id = ? ORDER BY recipes.id DESC`).all(req.user.id);
+    const notice = req.query.submitted ? 'Thanks! Your recipe will show up in Recipes once it has been verified.' : '';
+    res.send(views.myRecipesPage({ user: req.user, recipes, notice }));
   });
 
   app.get('/recipes/new', (req, res) => res.send(views.newRecipePage({ user: req.user })));
@@ -94,7 +105,7 @@ function createApp({ dbFile, adminEmail }) {
     }
     db.prepare('INSERT INTO recipes (title, ingredients, steps, author_id) VALUES (?, ?, ?, ?)')
       .run(values.title, values.ingredients, values.steps, req.user.id);
-    res.redirect('/recipes?submitted=1');
+    res.redirect('/recipes/mine?submitted=1');
   });
 
   app.get('/recipes/unverified', requireAdmin, (req, res) => {

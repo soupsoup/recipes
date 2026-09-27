@@ -40,12 +40,13 @@ test('signed-out visitors are sent to sign in', async () => {
   }
 });
 
-test('home page shows the welcome text and both options', async () => {
+test('home page shows the welcome text and all three options', async () => {
   const cookie = await signup('Sam', 'sam@example.com');
   const html = await (await get('/', cookie)).text();
   assert.match(html, /Welcome to Cool Cooking Recipes/);
   assert.match(html, /href="\/recipes"[^>]*>Recipes</);
   assert.match(html, />Create recipe</);
+  assert.match(html, />My recipes</);
   assert.match(html, /src="\/logo.svg"/);
 });
 
@@ -89,4 +90,36 @@ test('wrong password is rejected', async () => {
   await signup('Kim', 'kim@example.com');
   const res = await post('/login', { email: 'kim@example.com', password: 'nope' });
   assert.strictEqual(res.status, 401);
+});
+
+test('search finds verified recipes by name or ingredient', async () => {
+  const cook = await signup('Lee', 'lee@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+  await post('/recipes', { title: 'Banana Bread', ingredients: 'Bananas\nWalnuts', steps: 'Bake' }, cook);
+  await post('/recipes', { title: 'Walnut Secret', ingredients: 'x', steps: 'y' }, cook);
+  const mine = await (await get('/recipes/mine', cook)).text();
+  const bananaId = [...mine.matchAll(/href="\/recipes\/(\d+)">([\s\S]*?)<\/a>/g)]
+    .find((m) => m[2].includes('Banana Bread'))[1];
+  await post(`/recipes/${bananaId}/verify`, {}, admin);
+
+  let html = await (await get('/recipes?q=walnut', cook)).text();
+  assert.match(html, /Banana Bread/);
+  assert.doesNotMatch(html, /Walnut Secret/, 'unverified recipes stay out of search');
+  html = await (await get('/recipes?q=zzz', cook)).text();
+  assert.match(html, /No recipes match/);
+  html = await (await get('/recipes?q=%25', cook)).text();
+  assert.match(html, /No recipes match/, '% is matched literally');
+});
+
+test('my recipes lists only your own recipes with their status', async () => {
+  const me = await signup('Jo', 'jo@example.com');
+  const other = await signup('Al', 'al@example.com');
+  const res = await post('/recipes', { title: 'Jo Soup', ingredients: 'Water', steps: 'Boil' }, me);
+  assert.strictEqual(res.headers.get('location'), '/recipes/mine?submitted=1');
+  await post('/recipes', { title: 'Al Salad', ingredients: 'Lettuce', steps: 'Toss' }, other);
+  const html = await (await get('/recipes/mine', me)).text();
+  assert.match(html, /Jo Soup/);
+  assert.match(html, /Waiting to be verified/);
+  assert.doesNotMatch(html, /Al Salad/);
 });
