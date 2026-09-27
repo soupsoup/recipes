@@ -3,21 +3,41 @@
 A small recipe-sharing web app. People sign in, share recipes and browse other
 people's recipes. New recipes stay hidden until the admin verifies them.
 
-## Run it
+## Run it locally
 
-Requires Node.js 22.5 or newer (the app uses Node's built-in SQLite).
+Requires Node.js 20 or newer.
 
 ```sh
 npm install
 ADMIN_EMAIL=you@example.com npm start
 ```
 
-Then open http://localhost:3000.
+Then open http://localhost:3000. Without `DATABASE_URL`, the app stores its
+data in `data/pglite` using PGlite (Postgres running inside Node), so no
+database server is needed.
 
 - `ADMIN_EMAIL`: the account that sees **Unverified recipes** and can verify or
   delete them. Sign up with this email to become the admin.
+- `DATABASE_URL`: a Postgres connection string. Set this in production.
 - `PORT`: port to listen on (default `3000`).
-- `DB_FILE`: where the SQLite database lives (default `data/recipes.db`).
+
+## Deploy to Vercel
+
+The database lives in the Supabase project `cool-cooking-recipes`. Its tables
+come from `supabase/migrations/`.
+
+1. In Supabase, open the project, press **Connect**, and copy the
+   **Transaction pooler** connection string (port 6543). If you don't know the
+   database password, reset it under **Project Settings → Database** and put
+   the new one into the string.
+2. On vercel.com, choose **Add New → Project** and import this GitHub repo.
+3. Before deploying, add two environment variables:
+   - `DATABASE_URL`: the connection string from step 1
+   - `ADMIN_EMAIL`: your email
+4. Press **Deploy**. Every push to the connected branch redeploys the app.
+
+`api/index.js` runs the Express app as a Vercel function, and `vercel.json`
+sends every request that isn't a file in `public/` to it.
 
 ## How it works
 

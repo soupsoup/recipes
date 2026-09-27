@@ -1,0 +1,33 @@
+CREATE TABLE IF NOT EXISTS users (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);
+
+CREATE TABLE IF NOT EXISTS recipes (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  title TEXT NOT NULL,
+  ingredients TEXT NOT NULL,
+  steps TEXT NOT NULL,
+  author_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  verified BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS recipes_author_id_idx ON recipes (author_id);
+CREATE INDEX IF NOT EXISTS recipes_verified_idx ON recipes (verified);
+
+-- Only the app's server connection may touch these tables. Supabase's public
+-- API roles get no access, so password hashes and sessions can't leak through it.
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON users, sessions, recipes FROM anon, authenticated;

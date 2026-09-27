@@ -9,9 +9,11 @@
     "test": "node --no-warnings --test test/*.test.js"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=20"
   },
   "dependencies": {
-    "express": "^5.2.1"
+    "@electric-sql/pglite": "^0.5.8",
+    "express": "^5.2.1",
+    "postgres": "^3.4.9"
   }
 }

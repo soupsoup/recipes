@@ -1,12 +1,14 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert');
 const { createApp } = require('../server');
+const { openDb } = require('../lib/db');
 
 let server;
 let base;
 
 before(async () => {
-  const app = createApp({ dbFile: ':memory:', adminEmail: 'admin@example.com' });
+  // No data directory: PGlite keeps the database in memory for the test run.
+  const app = createApp({ db: openDb(), adminEmail: 'admin@example.com' });
   await new Promise((resolve) => { server = app.listen(0, resolve); });
   base = `http://localhost:${server.address().port}`;
 });
@@ -85,6 +87,13 @@ test('recipe text is escaped', async () => {
   const html = await (await get('/recipes/unverified', admin)).text();
   assert.match(html, /&lt;script&gt;x/);
   assert.doesNotMatch(html, /<script>x/);
+});
+
+test('odd recipe ids return not found instead of crashing', async () => {
+  const cookie = await signup('Ned', 'ned@example.com');
+  for (const id of ['abc', '0', '-1', '99999999999999999999']) {
+    assert.strictEqual((await get(`/recipes/${id}`, cookie)).status, 404);
+  }
 });
 
 test('wrong password is rejected', async () => {
