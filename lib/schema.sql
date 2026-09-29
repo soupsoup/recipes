@@ -54,3 +54,17 @@ CREATE INDEX IF NOT EXISTS comments_recipe_id_idx ON comments (recipe_id);
 CREATE INDEX IF NOT EXISTS comments_parent_id_idx ON comments (parent_id);
 CREATE INDEX IF NOT EXISTS comments_user_id_idx ON comments (user_id);
 ALTER TABLE recipes ADD COLUMN IF NOT EXISTS comments_off BOOLEAN NOT NULL DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS contest_entries (
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  year INT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (recipe_id, year)
+);
+-- The winner is written once, right after the contest ends, so later hearts can't change it.
+CREATE TABLE IF NOT EXISTS contest_winners (
+  year INT PRIMARY KEY,
+  recipe_id BIGINT REFERENCES recipes(id) ON DELETE SET NULL,
+  hearts INT NOT NULL,
+  decided_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

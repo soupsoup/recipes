@@ -4,6 +4,7 @@ const { openDb } = require('./lib/db');
 const auth = require('./lib/auth');
 const views = require('./lib/views');
 const { AVATAR_PRESETS } = require('./lib/presets');
+const { halloween, contestEnd } = require('./lib/halloween');
 
 const COOKIE = 'ccr_session';
 
@@ -59,7 +60,8 @@ function recipeId(req) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-function createApp({ db, adminEmail }) {
+// `now` can be swapped in tests to pretend it's October.
+function createApp({ db, adminEmail, now = () => new Date() }) {
   const admin = (adminEmail || '').trim().toLowerCase();
   const isAdmin = (user) => Boolean(admin) && user?.email === admin;
 
@@ -134,7 +136,87 @@ function createApp({ db, adminEmail }) {
   const recipes = async (req, rest, params = []) =>
     (await db.query(`${recipeQuery} ${rest}`, [req.user.id, ...params])).map(toRecipe);
 
-  app.get('/', (req, res) => res.send(views.homePage({ user: req.user })));
+  // ---- Spooky Food Contest ----------------------------------------------------
+  // Votes are hearts from anyone except the recipe's own creator, given before the
+  // contest ended. The winner is saved once so later hearts can't change it.
+  const contestVotes = `
+    SELECT e.recipe_id, e.created_at AS entered_at,
+      count(f.user_id) FILTER (WHERE f.user_id <> r.author_id AND f.created_at < $2) AS votes
+    FROM contest_entries e
+    JOIN recipes r ON r.id = e.recipe_id AND r.verified
+    LEFT JOIN favorites f ON f.recipe_id = e.recipe_id
+    WHERE e.year = $1
+    GROUP BY e.recipe_id, e.created_at`;
+
+  async function decideWinner(year) {
+    const [done] = await db.query('SELECT 1 FROM contest_winners WHERE year = $1', [year]);
+    if (done) return;
+    await db.query(
+      `INSERT INTO contest_winners (year, recipe_id, hearts)
+       SELECT $1, recipe_id, votes FROM (${contestVotes}) v
+       WHERE votes > 0 ORDER BY votes DESC, entered_at ASC, recipe_id ASC LIMIT 1
+       ON CONFLICT (year) DO NOTHING`,
+      [year, contestEnd(year)],
+    );
+    // No entries with votes: remember that nobody won, so this isn't worked out again.
+    await db.query('INSERT INTO contest_winners (year, recipe_id, hearts) VALUES ($1, NULL, 0) ON CONFLICT (year) DO NOTHING', [year]);
+  }
+
+  async function winnerOf(year) {
+    await decideWinner(year);
+    const [row] = await db.query(
+      `SELECT w.year, w.hearts, r.id, r.title, u.id AS author_id, u.name AS author
+       FROM contest_winners w JOIN recipes r ON r.id = w.recipe_id JOIN users u ON u.id = r.author_id
+       WHERE w.year = $1 AND r.verified`,
+      [year],
+    );
+    return row ? { year: Number(row.year), hearts: Number(row.hearts), recipeId: Number(row.id), title: row.title, authorId: Number(row.author_id), author: row.author } : null;
+  }
+
+  async function crownsFor(where, params) {
+    await decideWinner(halloween(now()).lastEndedYear);
+    return (await db.query(
+      `SELECT w.year, r.id, r.title FROM contest_winners w JOIN recipes r ON r.id = w.recipe_id
+       WHERE ${where} AND r.verified ORDER BY w.year DESC`,
+      params,
+    )).map((c) => ({ year: Number(c.year), recipeId: Number(c.id), title: c.title }));
+  }
+
+  app.get('/', async (req, res) => {
+    const h = halloween(now());
+    const winner = h.announcing ? await winnerOf(h.lastEndedYear) : null;
+    res.send(views.homePage({ user: req.user, spooky: h.spooky, contestYear: h.year, winner }));
+  });
+
+  app.get('/contest', async (req, res) => {
+    const h = halloween(now());
+    const year = h.contestOpen ? h.year : h.lastEndedYear;
+    const winner = h.contestOpen ? null : await winnerOf(year);
+    const votes = await db.query(`${contestVotes} ORDER BY votes DESC, entered_at ASC, e.recipe_id ASC`, [year, contestEnd(year)]);
+    const entries = [];
+    for (const v of votes) {
+      const [recipe] = await recipes(req, 'WHERE recipes.id = $2', [Number(v.recipe_id)]);
+      if (recipe) entries.push({ ...recipe, votes: Number(v.votes) });
+    }
+    res.send(views.contestPage({ user: req.user, year, open: h.contestOpen, entries, winner }));
+  });
+
+  // The creator of a verified recipe can enter it (or take it out) during October.
+  app.post('/recipes/:id/contest', async (req, res) => {
+    const id = recipeId(req);
+    const h = halloween(now());
+    const [recipe] = id ? await db.query('SELECT id FROM recipes WHERE id = $1 AND author_id = $2 AND verified', [id, req.user.id]) : [];
+    if (!recipe || !h.contestOpen) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    if (req.body.enter === '1') {
+      await db.query(
+        'INSERT INTO contest_entries (recipe_id, year, created_at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+        [id, h.year, now()],
+      );
+    } else {
+      await db.query('DELETE FROM contest_entries WHERE recipe_id = $1 AND year = $2', [id, h.year]);
+    }
+    res.redirect(`/recipes/${id}`);
+  });
 
   app.get('/recipes', async (req, res) => {
     const query = String(req.query.q || '').trim().slice(0, 100);
@@ -170,10 +252,10 @@ function createApp({ db, adminEmail }) {
     if (id && want) {
       // Only verified recipes can be favorited.
       await db.query(
-        `INSERT INTO favorites (user_id, recipe_id)
-         SELECT $1, id FROM recipes WHERE id = $2 AND verified
+        `INSERT INTO favorites (user_id, recipe_id, created_at)
+         SELECT $1, id, $3 FROM recipes WHERE id = $2 AND verified
          ON CONFLICT DO NOTHING`,
-        [req.user.id, id],
+        [req.user.id, id, now()],
       );
       const [row] = await db.query('SELECT 1 FROM favorites WHERE user_id = $1 AND recipe_id = $2', [req.user.id, id]);
       favorited = Boolean(row);
@@ -255,7 +337,14 @@ function createApp({ db, adminEmail }) {
       },
     })) : [];
     const canModerate = isAdmin(req.user) || recipe.author_id === req.user.id;
-    res.send(views.recipePage({ user: req.user, isAdmin: isAdmin(req.user), recipe, notice, comments, canModerate }));
+    const h = halloween(now());
+    const [entry] = await db.query('SELECT 1 FROM contest_entries WHERE recipe_id = $1 AND year = $2', [recipe.id, h.year]);
+    const contest = {
+      open: h.contestOpen && recipe.verified,
+      entered: Boolean(entry) && h.contestOpen,
+      crowns: await crownsFor('r.id = $1', [recipe.id]),
+    };
+    res.send(views.recipePage({ user: req.user, isAdmin: isAdmin(req.user), recipe, notice, comments, canModerate, contest }));
   });
 
   // Comments and replies: anyone signed in can comment on a verified recipe.
@@ -400,7 +489,8 @@ function createApp({ db, adminEmail }) {
       preset: row.avatar_preset || null,
     };
     const list = await recipes(req, 'WHERE verified AND author_id = $2 ORDER BY recipes.id DESC', [person.id]);
-    res.send(views.profilePage({ user: req.user, person, recipes: list, isMe: person.id === req.user.id }));
+    const crowns = await crownsFor('r.author_id = $1', [person.id]);
+    res.send(views.profilePage({ user: req.user, person, recipes: list, isMe: person.id === req.user.id, crowns }));
   });
 
   app.get('/users/:id/avatar', async (req, res) => {
@@ -458,6 +548,8 @@ function createApp({ db, adminEmail }) {
 // Settings come from environment variables: DATABASE_URL (Postgres, e.g. Supabase)
 // and ADMIN_EMAIL. Without DATABASE_URL the app keeps its data in data/pglite.
 function appFromEnv() {
+  // SPOOKY_PREVIEW_DATE (e.g. 2026-10-15) lets you preview the Halloween event locally.
+  const preview = process.env.SPOOKY_PREVIEW_DATE ? new Date(`${process.env.SPOOKY_PREVIEW_DATE}T12:00:00-04:00`) : null;
   if (process.env.VERCEL && !process.env.DATABASE_URL) {
     throw new Error('DATABASE_URL is not set. Add the Supabase connection string in the Vercel project settings.');
   }
@@ -468,7 +560,7 @@ function appFromEnv() {
     databaseUrl: process.env.DATABASE_URL,
     dataDir: process.env.DATA_DIR || path.join(__dirname, 'data', 'pglite'),
   });
-  return createApp({ db, adminEmail: process.env.ADMIN_EMAIL });
+  return createApp({ db, adminEmail: process.env.ADMIN_EMAIL, now: preview ? () => preview : undefined });
 }
 
 if (require.main === module) {

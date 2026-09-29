@@ -348,3 +348,34 @@ body.home .welcome h1, body.home .welcome .sub { text-shadow: 0 2px 6px rgba(10,
 .comments-head h2 { margin: 0; }
 .comments-toggle { margin: 0; }
 .comments-off { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; color: var(--muted); text-align: center; }
+
+/* Halloween: spooky main menu and the Spooky Food Contest */
+body.home.spooky { background: #26163A; }
+body.home.spooky .welcome .sub { color: #E4D6F5; }
+body.home.spooky .menu .btn { background: #170C26; border-color: #F28C28; }
+body.home.spooky .menu .btn:hover { background: #3A2159; border-color: #FFB25B; }
+.spooky-hello { margin: 0 0 8px; color: #FFB25B; font-weight: 800; font-size: 1.3rem; letter-spacing: 0.02em; }
+.event-banner {
+  display: flex; align-items: center; gap: 14px; max-width: 420px; margin: 28px auto 0; padding: 14px 18px;
+  background: #F28C28; color: #1E1030; border-radius: 14px; text-decoration: none; text-align: left;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.event-banner:hover { background: #FFA040; }
+.event-banner.winner { background: #FFE9A8; }
+.event-emoji { font-size: 2rem; }
+.crown {
+  display: inline-block; margin: 4px 8px 4px 0; padding: 2px 12px; border-radius: 999px;
+  background: #FFE9A8; color: #6B4A00; font-weight: 700; font-size: 0.9rem; text-decoration: none;
+}
+.big-crown { font-size: 1rem; padding: 6px 16px; margin-top: 8px; }
+.contest-box {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  margin: 12px 0 0; padding: 12px 14px; background: #FFF1E3; border: 1px solid #F6C792; border-radius: 12px;
+}
+.spooky-btn { background: #F28C28; border-color: #C96A12; color: #1E1030; }
+.spooky-btn:hover { background: #FFA040; }
+.contest-head { text-align: center; }
+.contest-trophy { font-size: 3rem; margin: 0; }
+.standings { counter-reset: none; }
+.standings .place { flex: none; width: 36px; margin-left: 12px; text-align: center; font-weight: 800; font-size: 1.3rem; color: var(--muted); }
+.standings .place + .thumb { margin-left: 4px; }
