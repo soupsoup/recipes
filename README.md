@@ -58,7 +58,7 @@ sends every request that isn't a file in `public/` to it.
   **Turn off comments**, which hides them (without deleting) until turned back on.
 - **Halloween (every October, US Eastern time):** the main menu turns spooky
   (🎃 👻 🦇 🍬 🕷️ float by) and shows the **Spooky Food Contest**. Creators enter a
-  verified recipe from its page; hearts from other people are the votes. After
+  verified recipe from its page; hearts from other people given in October are the votes. After
   Halloween the winner is saved, gets a 👑 badge on the recipe and profile, and is
   announced on the main menu until November 14. Preview it locally with
   `SPOOKY_PREVIEW_DATE=2026-10-15 npm start`. Dates live in `lib/halloween.js`.

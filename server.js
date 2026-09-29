@@ -4,7 +4,7 @@ const { openDb } = require('./lib/db');
 const auth = require('./lib/auth');
 const views = require('./lib/views');
 const { AVATAR_PRESETS } = require('./lib/presets');
-const { halloween, contestEnd } = require('./lib/halloween');
+const { halloween, contestStart, contestEnd } = require('./lib/halloween');
 
 const COOKIE = 'ccr_session';
 
@@ -137,11 +137,11 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     (await db.query(`${recipeQuery} ${rest}`, [req.user.id, ...params])).map(toRecipe);
 
   // ---- Spooky Food Contest ----------------------------------------------------
-  // Votes are hearts from anyone except the recipe's own creator, given before the
-  // contest ended. The winner is saved once so later hearts can't change it.
+  // Votes are hearts from anyone except the recipe's own creator, given during October
+  // ($3 is the start, $2 the end). The winner is saved once so later hearts can't change it.
   const contestVotes = `
     SELECT e.recipe_id, e.created_at AS entered_at,
-      count(f.user_id) FILTER (WHERE f.user_id <> r.author_id AND f.created_at < $2) AS votes
+      count(f.user_id) FILTER (WHERE f.user_id <> r.author_id AND f.created_at >= $3 AND f.created_at < $2) AS votes
     FROM contest_entries e
     JOIN recipes r ON r.id = e.recipe_id AND r.verified
     LEFT JOIN favorites f ON f.recipe_id = e.recipe_id
@@ -156,7 +156,7 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
        SELECT $1, recipe_id, votes FROM (${contestVotes}) v
        WHERE votes > 0 ORDER BY votes DESC, entered_at ASC, recipe_id ASC LIMIT 1
        ON CONFLICT (year) DO NOTHING`,
-      [year, contestEnd(year)],
+      [year, contestEnd(year), contestStart(year)],
     );
     // No entries with votes: remember that nobody won, so this isn't worked out again.
     await db.query('INSERT INTO contest_winners (year, recipe_id, hearts) VALUES ($1, NULL, 0) ON CONFLICT (year) DO NOTHING', [year]);
@@ -192,7 +192,7 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     const h = halloween(now());
     const year = h.contestOpen ? h.year : h.lastEndedYear;
     const winner = h.contestOpen ? null : await winnerOf(year);
-    const votes = await db.query(`${contestVotes} ORDER BY votes DESC, entered_at ASC, e.recipe_id ASC`, [year, contestEnd(year)]);
+    const votes = await db.query(`${contestVotes} ORDER BY votes DESC, entered_at ASC, e.recipe_id ASC`, [year, contestEnd(year), contestStart(year)]);
     const entries = [];
     for (const v of votes) {
       const [recipe] = await recipes(req, 'WHERE recipes.id = $2', [Number(v.recipe_id)]);

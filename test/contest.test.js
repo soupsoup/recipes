@@ -50,7 +50,9 @@ test('the Spooky Food Contest runs in October and crowns the most-hearted entry'
   const tacoDip = await verifiedRecipe(nicole, admin, 'Halloween Taco Dip');
   const lasagna = await verifiedRecipe(anthony, admin, 'The Best Lasagna Ever');
 
-  // September: normal menu, no contest.
+  // September: normal menu, no contest. A heart given now won't count as a vote later.
+  const early = await signup('Early Fan', 'early@example.com');
+  await heart(grilledCheese, early);
   let home = await page('/', fans[0]);
   assert.doesNotMatch(home, /home spooky|Spooky Food Contest/);
   assert.doesNotMatch(await page(`/recipes/${grilledCheese}`, nicole), /Enter the Spooky Food Contest/);
@@ -83,7 +85,7 @@ test('the Spooky Food Contest runs in October and crowns the most-hearted entry'
   let contest = await page('/contest', fans[0]);
   assert.match(contest, /Current standings/);
   assert.match(contest, /Halloween Taco Dip<\/a>[\s\S]*?2 votes/);
-  assert.match(contest, /Spooky Grilled Cheese<\/a>[\s\S]*?2 votes/, 'the creator\'s own heart is not a vote');
+  assert.match(contest, /Spooky Grilled Cheese<\/a>[\s\S]*?2 votes/, 'neither the creator\'s own heart nor a September heart is a vote');
   assert.ok(contest.indexOf('Spooky Grilled Cheese') < contest.indexOf('Halloween Taco Dip'), 'a tie goes to the earlier entry');
 
   // Leaving the contest takes the lasagna out.
