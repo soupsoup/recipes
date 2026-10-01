@@ -235,8 +235,9 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
       'SELECT COUNT(*) AS n FROM favorites JOIN recipes ON recipes.id = favorites.recipe_id WHERE favorites.user_id = $1 AND recipes.verified',
       [req.user.id],
     );
+    const notice = req.query.deleted && isAdmin(req.user) ? `Deleted "${String(req.query.deleted).slice(0, 100)}".` : '';
     res.send(views.recipesPage({
-      user: req.user, isAdmin: isAdmin(req.user), recipes: list, unverifiedCount, query, favoriteCount: Number(favoriteCount),
+      user: req.user, isAdmin: isAdmin(req.user), recipes: list, unverifiedCount, query, favoriteCount: Number(favoriteCount), notice,
     }));
   });
 
@@ -404,24 +405,31 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     res.redirect(`/recipes/${Number(comment.recipe_id)}${thread}#comments`);
   });
 
-  // Editing: only the person who wrote the recipe. A verified recipe goes back to be
-  // verified after an edit (unless the admin edited it), so changes are reviewed too.
-  async function ownRecipe(req) {
+  // Editing: the person who wrote the recipe, or the admin for any published recipe.
+  // A verified recipe goes back to be verified after an author's edit, so changes are
+  // reviewed too; the admin's edits stay published.
+  async function editableRecipe(req) {
     const id = recipeId(req);
     const [recipe] = id ? await recipes(req, 'WHERE recipes.id = $2', [id]) : [];
-    return recipe && recipe.author_id === req.user.id ? recipe : null;
+    if (!recipe) return null;
+    return recipe.author_id === req.user.id || (isAdmin(req.user) && recipe.verified) ? recipe : null;
   }
 
+  const formExtras = (req, recipe) => ({
+    sendsBackToReview: recipe.verified && !isAdmin(req.user),
+    editingFor: recipe.author_id === req.user.id ? null : recipe.author,
+  });
+
   app.get('/recipes/:id/edit', async (req, res) => {
-    const recipe = await ownRecipe(req);
+    const recipe = await editableRecipe(req);
     if (!recipe) return res.status(404).send(views.notFoundPage({ user: req.user }));
     res.send(views.recipeFormPage({
-      user: req.user, recipe, values: { ...recipe, video_url: recipe.video?.link ?? '' }, sendsBackToReview: recipe.verified && !isAdmin(req.user),
+      user: req.user, recipe, values: { ...recipe, video_url: recipe.video?.link ?? '' }, ...formExtras(req, recipe),
     }));
   });
 
   app.post('/recipes/:id/edit', async (req, res) => {
-    const recipe = await ownRecipe(req);
+    const recipe = await editableRecipe(req);
     if (!recipe) return res.status(404).send(views.notFoundPage({ user: req.user }));
     const values = {
       title: (req.body.title || '').trim(),
@@ -433,7 +441,7 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     };
     const keepVerified = recipe.verified && isAdmin(req.user);
     const fail = (error) => res.status(400).send(views.recipeFormPage({
-      user: req.user, recipe, values, error, sendsBackToReview: recipe.verified && !keepVerified,
+      user: req.user, recipe, values, error, ...formExtras(req, recipe),
     }));
     if (!values.title || !values.ingredients || !values.steps) return fail('Please fill in every field.');
     const video = values.video_url ? parseVideo(values.video_url) : null;
@@ -444,8 +452,9 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
       return fail("That photo couldn't be used. Try a different JPEG or PNG photo.");
     }
     await db.query(
-      'UPDATE recipes SET title = $1, ingredients = $2, steps = $3, verified = $4, video_url = $7 WHERE id = $5 AND author_id = $6',
-      [values.title, values.ingredients, values.steps, keepVerified, recipe.id, req.user.id, video?.link ?? null],
+      // editableRecipe() above already checked who may edit this recipe.
+      'UPDATE recipes SET title = $1, ingredients = $2, steps = $3, verified = $4, video_url = $5 WHERE id = $6',
+      [values.title, values.ingredients, values.steps, keepVerified, video?.link ?? null, recipe.id],
     );
     if (photo) {
       await db.query(
@@ -476,9 +485,11 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     res.redirect('/recipes/unverified');
   });
 
+  // The admin can delete any recipe: one waiting for review, or one already published.
   app.post('/recipes/:id/delete', requireAdmin, async (req, res) => {
     const id = recipeId(req);
-    if (id) await db.query('DELETE FROM recipes WHERE id = $1', [id]);
+    const [gone] = id ? await db.query('DELETE FROM recipes WHERE id = $1 RETURNING verified, title', [id]) : [];
+    if (gone?.verified) return res.redirect(`/recipes?deleted=${encodeURIComponent(gone.title)}`);
     res.redirect('/recipes/unverified');
   });
 

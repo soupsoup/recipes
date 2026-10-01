@@ -54,7 +54,9 @@ sends every request that isn't a file in `public/` to it.
   video's ID, never from the pasted text.
 - Only the person who made a recipe can edit it (**Edit recipe** on the recipe,
   or **Edit** in My recipes). Editing a verified recipe sends it back to be
-  verified, unless the admin edited their own recipe.
+  verified, unless the admin edited it.
+- The admin can also **Edit recipe** or **Delete recipe** on any published recipe.
+  Admin edits stay published; the recipe keeps its original author.
 - Verified recipes have a YouTube-style comment section: newest comments first,
   **Reply** under each comment, and replies tucked under "N replies". The recipe's
   author is labelled **Chef**. People can delete their own comments; the recipe's

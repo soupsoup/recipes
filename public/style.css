@@ -395,3 +395,5 @@ body.home.spooky .menu .btn:hover { background: #3A2159; border-color: #FFB25B; 
 }
 .recipe-card .thumb-wrap + .card-body { padding-left: 12px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.admin-actions { align-items: center; padding-top: 16px; border-top: 1px solid var(--line); }
