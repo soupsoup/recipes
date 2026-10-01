@@ -1,0 +1,23 @@
+{
+  "note": "Pumpkin Pie (Nicole DeRosa), The Best Lasagna Ever and Arayes (Anthony DeRosa), exactly as they were before the admin asked Claude to fix missing ingredients and a cooking temperature on 2026-10-01. To undo, set ingredients and steps back to these values.",
+  "recipes": [
+    {
+      "id": 2,
+      "title": "Pumpkin Pie",
+      "ingredients": "- 1 unbaked 9-inch pie crust (Wholly Wholesome brand)\r\n- 2 eggs (Vital Farms brand )\r\n- 1/2 cup coconut sugar (Big Tree Farms brand - it's organic + non-gmo )\r\n- 1 & 1/2 tsp cinnamon (Simply Organic brand)\r\n- 1/4 tsp nutmeg (Simply Organic brand)\r\n- 1/4 tsp sea salt (Celtic Sea Salt brand since it's organic + non-gmo )\r\n- 1 & 3/4 cups  \r\n- 1 cup almond milk (MALK or Three Trees brand)",
+      "steps": "- Whisk eggs\r\n- Add sugar, spices, and salt.\r\n- Add pumpkin, almond milk. \r\n- Pour mixture into pie shell. \r\n- Bake at 375 degrees Fahrenheit for 55 minutes."
+    },
+    {
+      "id": 5,
+      "title": "The Best Lasagna Ever",
+      "ingredients": "1 lb ground beef \r\n1 lb ground pork \r\nLarge can of Raos marinara sauce\r\nOne box of lasagna pasta\r\nTablespoon of oregano\r\nHalf a chopped onion \r\nCarton of ricotta cheese\r\nFresh mozzarella cheese\r\nGrated Parmesan",
+      "steps": "Cook the lasagna pasta in salty boiled water and put the pasta aside\r\nSauté the onions until translucent \r\nAdd the ground beef and pork\r\nAdd the marinara sauce\r\nCook until bubbling then reduce heat to simmer\r\nIn a mixing bowl, combine ricotta cheese with egg, remaining 2 tablespoons parsley, and 1/2 teaspoon salt.\r\nPreheat the oven to 375 degrees F (190 degrees C).\r\nTo assemble, spread 1 ½ cups of meat sauce in the bottom of a 9x13-inch baking dish. Arrange 6 noodles lengthwise over meat sauce, overlapping slightly. Spread with 1/2 of the ricotta cheese mixture. Top with 1/3 of the mozzarella cheese slices. Spoon 1 ½ cups meat sauce over mozzarella, and sprinkle with 1/4 cup Parmesan cheese.\r\n\r\nRepeat layers, and top with remaining mozzarella and Parmesan cheese. Cover with foil: to prevent sticking, either spray foil with cooking spray or make sure the foil does not touch the cheese.\r\nBake in the preheated oven for 25 minutes. Remove the foil and bake for an additional 25 minutes.\r\nRemove from oven and let rest for 15 minutes and then serve and enjoy!"
+    },
+    {
+      "id": 6,
+      "title": "Arayes",
+      "ingredients": "Meat mixture:\r\n1 lb ground beef (85/15)\r\n1 small yellow onion, grated and squeezed dry\r\n5 garlic cloves, finely grated\r\n1 grated jalapeño\r\n2 tbsp tomato paste\r\n1/3 cup parsley, finely chopped\r\n1/4 cup cilantro, finely chopped\r\n1 tbsp olive oil\r\n1 tbsp ice water\r\n1 tsp salt\r\n1 tsp black pepper\r\n2 tsp cumin\r\n2 tsp paprika\r\n1 tsp allspice\r\n1 tsp coriander\r\n1 tsp garlic powder\r\n1/4 tsp cinnamon\r\nOther:\r\n4 pitas, cut in half\r\nGarlic tahini yogurt sauce:\r\n3/4 cup Greek yogurt\r\n1/4 cup tahini\r\n3 garlic cloves, finely grated\r\njuice of 1/2 lemon\r\n1 tbsp olive oil\r\n1/2 tsp salt\r\n1/4 tsp cumin\r\n2 tbsp parsley, finely chopped\r\n2 tbsp cilantro, finely chopped",
+      "steps": "Preheat oven to 350°F.\r\nMix beef, onion, garlic, jalapeño, tomato paste, parsley, cilantro, olive oil, ice water, and spices until combined and slightly sticky.\r\nCut pitas in half, open pockets (microwave a few seconds first to ease opening), spread a thin layer of meat inside each, brush outside generously with olive oil.\r\nHeat a pan over medium heat; cook arayes meat-side down 1-2 minutes until charred, then flip and cook each pita side until golden and crispy.\r\nFinish in oven 15 minutes, until meat reaches 155°F internally.\r\nMix all sauce ingredients until smooth.\r\nBrush hot arayes with olive oil mixed with minced garlic and parsley; serve with dipping sauce."
+    }
+  ]
+}
