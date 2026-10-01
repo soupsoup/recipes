@@ -73,6 +73,11 @@ sends every request that isn't a file in `public/` to it.
   Halloween the winner is saved, gets a 👑 badge on the recipe and profile, and is
   announced on the main menu until November 14. Preview it locally with
   `SPOOKY_PREVIEW_DATE=2026-10-15 npm start`. Dates live in `lib/halloween.js`.
+  During Halloween the header on every page turns purple with dangling spiders.
+- **Christmas (December 1 through Christmas Day):** the header on every page gets
+  red-and-white candy-cane stripes, and the main menu becomes a snowy night village
+  (houses with glowing windows and twinkling lights) with candy canes and presents
+  falling. Preview with `SPOOKY_PREVIEW_DATE=2026-12-10 npm start`.
 - My recipes lists everything you've shared, marked verified or waiting.
 - Each verified recipe has a heart. Pressing it saves the recipe to your
   **Favorites** (a button at the top of Recipes); pressing it again removes it.

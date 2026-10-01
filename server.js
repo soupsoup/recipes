@@ -66,6 +66,8 @@ function recipeId(req) {
 function createApp({ db, adminEmail, now = () => new Date() }) {
   const admin = (adminEmail || '').trim().toLowerCase();
   const isAdmin = (user) => Boolean(admin) && user?.email === admin;
+  // Every page's header follows the season, which only depends on the date.
+  views.setClock(now);
 
   const app = express();
   app.set('trust proxy', 1);
@@ -187,7 +189,7 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
   app.get('/', async (req, res) => {
     const h = halloween(now());
     const winner = h.announcing ? await winnerOf(h.lastEndedYear) : null;
-    res.send(views.homePage({ user: req.user, spooky: h.spooky, contestYear: h.year, winner }));
+    res.send(views.homePage({ user: req.user, spooky: h.spooky, christmas: h.christmas, contestYear: h.year, winner }));
   });
 
   app.get('/contest', async (req, res) => {

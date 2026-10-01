@@ -429,3 +429,102 @@ body.home.spooky .menu .btn:hover { background: #3A2159; border-color: #FFB25B; 
   .section-chips { gap: 6px; }
   .section-chips .chip { padding: 5px 11px; font-size: 0.88rem; }
 }
+
+/* Seasonal headers. The logo and name get a white backing so they stay readable. */
+.top.event { position: relative; overflow: hidden; }
+.top.event .logo, .top.event .signout {
+  position: relative; z-index: 1; background: #FFFFFF;
+  border-radius: 14px; padding: 4px 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.header-decor { position: absolute; inset: 0; pointer-events: none; }
+
+/* Halloween: purple with dangling spiders and cobwebs */
+.top.halloween { background: #3B1E5C; border-bottom: 3px solid #F28C28; }
+.top.halloween .web { position: absolute; top: -6px; font-size: 44px; opacity: 0.55; }
+.top.halloween .web.left { left: -6px; }
+.top.halloween .web.right { right: -6px; transform: scaleX(-1); }
+.spider { position: absolute; top: 0; left: var(--left); display: flex; flex-direction: column; align-items: center; animation: spider-bob ease-in-out infinite alternate; }
+.spider::before { content: ""; width: 1px; height: var(--drop); background: rgba(255, 255, 255, 0.6); }
+.spider span { font-size: 20px; line-height: 1; }
+@keyframes spider-bob {
+  from { transform: translateY(-10px); }
+  to { transform: translateY(14px); }
+}
+
+/* Christmas: red and white candy-cane stripes */
+.top.christmas {
+  background: repeating-linear-gradient(135deg, #D62839 0 18px, #FFFFFF 18px 36px);
+  border-bottom: 3px solid #1E6B3A;
+}
+
+/* Falling candy canes and presents on the Christmas main menu */
+.food-bg.falling span { animation-name: food-fall; opacity: 0.8; }
+.candy-cane { display: block; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
+@keyframes food-fall {
+  0%   { transform: translate(0, -15vh) rotate(-15deg); }
+  25%  { transform: translate(var(--sway), 20vh) rotate(5deg); }
+  50%  { transform: translate(0, 50vh) rotate(-10deg); }
+  75%  { transform: translate(calc(var(--sway) * -1), 80vh) rotate(10deg); }
+  100% { transform: translate(0, 110vh) rotate(-15deg); }
+}
+.spooky-hello.merry { color: #FFFFFF; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spider { animation: none; }
+  .food-bg.falling span { animation-play-state: paused; }
+}
+@media (max-width: 480px) {
+  /* On phones the white backings fill most of the bar, so two spiders hang in the gap between them. */
+  .top.halloween .spider { display: none; }
+  .top.halloween .spider.s2 { display: flex; left: 51%; }
+  .top.halloween .spider.s4 { display: flex; left: 58%; }
+}
+
+.top.event .signout .link { white-space: nowrap; }
+@media (max-width: 480px) {
+  /* Room for the picture and "Sign out" on one line inside the white backing */
+  .top.event .signout .who { display: none; }
+  .top.event .logo, .top.event .signout { padding: 4px 8px; }
+}
+
+/* Christmas main menu: a snowy night village */
+body.home.christmas { background: linear-gradient(#0B1A36 0%, #1C3766 55%, #3E5F92 100%); background-attachment: fixed; }
+body.home.christmas .welcome .sub { color: #E3ECF8; }
+body.home.christmas .menu .btn { background: #0F2244; border-color: #D62839; }
+body.home.christmas .menu .btn:hover { background: #1A3463; border-color: #FF5A6A; }
+.winter-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.village { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 34vh; min-height: 170px; }
+.village .window { filter: drop-shadow(0 0 4px #FFC93D); }
+.village .bulb { animation: twinkle 1.6s ease-in-out infinite alternate; }
+.village .bulb:nth-of-type(2n) { animation-delay: -0.8s; }
+.village .bulb:nth-of-type(3n) { animation-delay: -0.4s; }
+@keyframes twinkle {
+  from { opacity: 1; }
+  to { opacity: 0.35; }
+}
+/* Snow: two layers of dots drifting down at different speeds. Moving the background by
+   exactly one tile per loop keeps it seamless. */
+.snow { position: absolute; inset: 0; background-repeat: repeat; animation: snowfall linear infinite; }
+.snow.far {
+  background-image:
+    radial-gradient(1.5px 1.5px at 30px 40px, #fff 60%, transparent 61%),
+    radial-gradient(1.5px 1.5px at 110px 150px, #fff 60%, transparent 61%),
+    radial-gradient(1.5px 1.5px at 170px 80px, #fff 60%, transparent 61%),
+    radial-gradient(1.5px 1.5px at 70px 200px, #fff 60%, transparent 61%);
+  background-size: 220px 220px; opacity: 0.7; animation-duration: 18s; --tile: 220px;
+}
+.snow.near {
+  background-image:
+    radial-gradient(3px 3px at 50px 60px, #fff 60%, transparent 61%),
+    radial-gradient(2.5px 2.5px at 200px 20px, #fff 60%, transparent 61%),
+    radial-gradient(3px 3px at 140px 230px, #fff 60%, transparent 61%),
+    radial-gradient(2.5px 2.5px at 260px 160px, #fff 60%, transparent 61%);
+  background-size: 300px 300px; animation-duration: 11s; --tile: 300px;
+}
+@keyframes snowfall {
+  from { background-position: 0 0; }
+  to { background-position: 30px var(--tile); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .snow, .village .bulb { animation: none; }
+}
