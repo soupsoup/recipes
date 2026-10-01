@@ -399,7 +399,7 @@ body.home.spooky .menu .btn:hover { background: #3A2159; border-color: #FFB25B; 
 .admin-actions { align-items: center; padding-top: 16px; border-top: 1px solid var(--line); }
 
 /* Sections */
-.section-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 10px; margin-bottom: 8px; scrollbar-width: thin; }
+.section-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 0 10px; margin-bottom: 8px; }
 .chip {
   flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px; border-radius: 999px;
   background: #fff; border: 1px solid #C5D1E2; color: var(--navy); font-weight: 700; text-decoration: none; white-space: nowrap;
@@ -425,3 +425,7 @@ body.home.spooky .menu .btn:hover { background: #3A2159; border-color: #FFB25B; 
 .section-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .section-meta form { margin: 0; }
 .card > h2:first-child { margin-top: 0; }
+@media (max-width: 480px) {
+  .section-chips { gap: 6px; }
+  .section-chips .chip { padding: 5px 11px; font-size: 0.88rem; }
+}
