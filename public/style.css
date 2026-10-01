@@ -397,3 +397,31 @@ body.home.spooky .menu .btn:hover { background: #3A2159; border-color: #FFB25B; 
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .admin-actions { align-items: center; padding-top: 16px; border-top: 1px solid var(--line); }
+
+/* Sections */
+.section-chips { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 10px; margin-bottom: 8px; scrollbar-width: thin; }
+.chip {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px; border-radius: 999px;
+  background: #fff; border: 1px solid #C5D1E2; color: var(--navy); font-weight: 700; text-decoration: none; white-space: nowrap;
+}
+.chip:hover { border-color: var(--navy); }
+.chip.active { background: var(--navy); border-color: var(--navy); color: #fff; }
+.chip.manage { background: transparent; border-style: dashed; color: var(--muted); font-weight: 600; }
+.chip.small { padding: 3px 10px; font-size: 0.85rem; }
+.recipe-sections { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.section-picker { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.section-picker fieldset { border: 0; padding: 0; margin: 0; flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; }
+.section-picker legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
+.section-check {
+  flex-direction: row; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid #C5D1E2; border-radius: 999px;
+  font-weight: 600; cursor: pointer; background: #fff;
+}
+.section-check input { width: auto; margin: 0; }
+.section-check:has(input:checked) { background: #E3EAF5; border-color: var(--navy); }
+.section-row { display: flex; gap: 8px; align-items: center; }
+.section-row input { flex: 1; min-width: 0; }
+.section-row .emoji-input { flex: none; width: 64px; text-align: center; font-size: 1.2rem; }
+.section-list li { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.section-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.section-meta form { margin: 0; }
+.card > h2:first-child { margin-top: 0; }

@@ -220,14 +220,43 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     res.redirect(`/recipes/${id}`);
   });
 
+  // ---- Sections (Burgers, Chicken, ...) ----------------------------------------
+  // The admin creates sections and puts recipes in them; everyone can browse them.
+  async function allSections() {
+    return (await db.query(
+      `SELECT s.id, s.name, s.emoji,
+         count(r.id) AS recipe_count
+       FROM sections s
+       LEFT JOIN recipe_sections rs ON rs.section_id = s.id
+       LEFT JOIN recipes r ON r.id = rs.recipe_id AND r.verified
+       GROUP BY s.id ORDER BY s.position, s.id`,
+    )).map((x) => ({ id: Number(x.id), name: x.name, emoji: x.emoji, count: Number(x.recipe_count) }));
+  }
+
+  function sectionInput(body) {
+    return {
+      name: String(body.name || '').trim().replace(/\s+/g, ' ').slice(0, 40),
+      // A short emoji (or nothing); the length cap keeps it to an icon, not a sentence.
+      emoji: [...String(body.emoji || '').trim()].slice(0, 4).join(''),
+    };
+  }
+
   app.get('/recipes', async (req, res) => {
     const query = String(req.query.q || '').trim().slice(0, 100);
     const like = `%${query.replace(/[\\%_]/g, '\\$&')}%`;
-    const list = query
-      ? await recipes(req, `WHERE verified
-          AND (title ILIKE $2 ESCAPE '\\' OR ingredients ILIKE $2 ESCAPE '\\')
-          ORDER BY recipes.id DESC`, [like])
-      : await recipes(req, 'WHERE verified ORDER BY recipes.id DESC');
+    const sections = await allSections();
+    const section = sections.find((x) => x.id === Number(req.query.section)) || null;
+    const where = ['verified'];
+    const params = [];
+    if (query) {
+      params.push(like);
+      where.push(`(title ILIKE $${params.length + 1} ESCAPE '\\' OR ingredients ILIKE $${params.length + 1} ESCAPE '\\')`);
+    }
+    if (section) {
+      params.push(section.id);
+      where.push(`EXISTS (SELECT 1 FROM recipe_sections rs WHERE rs.recipe_id = recipes.id AND rs.section_id = $${params.length + 1})`);
+    }
+    const list = await recipes(req, `WHERE ${where.join(' AND ')} ORDER BY recipes.id DESC`, params);
     const unverifiedCount = isAdmin(req.user)
       ? Number((await db.query('SELECT COUNT(*) AS n FROM recipes WHERE NOT verified'))[0].n)
       : 0;
@@ -238,7 +267,61 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     const notice = req.query.deleted && isAdmin(req.user) ? `Deleted "${String(req.query.deleted).slice(0, 100)}".` : '';
     res.send(views.recipesPage({
       user: req.user, isAdmin: isAdmin(req.user), recipes: list, unverifiedCount, query, favoriteCount: Number(favoriteCount), notice,
+      sections, section,
     }));
+  });
+
+  app.get('/sections', requireAdmin, async (req, res) => {
+    res.send(views.sectionsPage({ user: req.user, sections: await allSections(), notice: String(req.query.notice || '').slice(0, 100) }));
+  });
+
+  app.post('/sections', requireAdmin, async (req, res) => {
+    const { name, emoji } = sectionInput(req.body);
+    const fail = async (error) => res.status(400).send(views.sectionsPage({ user: req.user, sections: await allSections(), error, values: { name, emoji } }));
+    if (!name) return fail('Give the new section a name.');
+    const [made] = await db.query(
+      `INSERT INTO sections (name, emoji, position)
+       VALUES ($1, $2, (SELECT coalesce(max(position), 0) + 1 FROM sections))
+       ON CONFLICT (name) DO NOTHING RETURNING id`,
+      [name, emoji],
+    );
+    if (!made) return fail(`There's already a section called "${name}".`);
+    res.redirect(`/sections?notice=${encodeURIComponent(`Added ${name}.`)}`);
+  });
+
+  app.post('/sections/:id', requireAdmin, async (req, res) => {
+    const id = recipeId(req);
+    const { name, emoji } = sectionInput(req.body);
+    if (!id || !name) return res.redirect('/sections');
+    const clash = await db.query('SELECT 1 FROM sections WHERE name = $1 AND id <> $2', [name, id]);
+    if (clash.length) {
+      return res.status(400).send(views.sectionsPage({ user: req.user, sections: await allSections(), error: `There's already a section called "${name}".` }));
+    }
+    await db.query('UPDATE sections SET name = $1, emoji = $2 WHERE id = $3', [name, emoji, id]);
+    res.redirect(`/sections?notice=${encodeURIComponent(`Saved ${name}.`)}`);
+  });
+
+  // Deleting a section only removes the section; its recipes stay in Recipes.
+  app.post('/sections/:id/delete', requireAdmin, async (req, res) => {
+    const id = recipeId(req);
+    const [gone] = id ? await db.query('DELETE FROM sections WHERE id = $1 RETURNING name', [id]) : [];
+    res.redirect(`/sections?notice=${encodeURIComponent(gone ? `Deleted the ${gone.name} section.` : '')}`);
+  });
+
+  app.post('/recipes/:id/sections', requireAdmin, async (req, res) => {
+    const id = recipeId(req);
+    const [recipe] = id ? await db.query('SELECT id FROM recipes WHERE id = $1', [id]) : [];
+    if (!recipe) return res.status(404).send(views.notFoundPage({ user: req.user }));
+    const picked = [].concat(req.body.section_ids || []).map(Number).filter((n) => Number.isSafeInteger(n) && n > 0);
+    await db.query('DELETE FROM recipe_sections WHERE recipe_id = $1', [id]);
+    for (const sectionId of new Set(picked)) {
+      // Only sections that exist; anything else is ignored.
+      await db.query(
+        'INSERT INTO recipe_sections (recipe_id, section_id) SELECT $1, id FROM sections WHERE id = $2 ON CONFLICT DO NOTHING',
+        [id, sectionId],
+      );
+    }
+    res.redirect(`/recipes/${id}?sections=saved#sections`);
   });
 
   app.get('/recipes/favorites', async (req, res) => {
@@ -350,7 +433,13 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
       entered: Boolean(entry) && h.contestOpen,
       crowns: await crownsFor('r.id = $1', [recipe.id]),
     };
-    res.send(views.recipePage({ user: req.user, isAdmin: isAdmin(req.user), recipe, notice, comments, canModerate, contest }));
+    const inSections = new Set((await db.query('SELECT section_id FROM recipe_sections WHERE recipe_id = $1', [recipe.id]))
+      .map((r) => Number(r.section_id)));
+    const sections = (await allSections()).map((x) => ({ ...x, checked: inSections.has(x.id) }));
+    const sectionNotice = req.query.sections === 'saved' ? 'Sections saved.' : '';
+    res.send(views.recipePage({
+      user: req.user, isAdmin: isAdmin(req.user), recipe, notice: notice || sectionNotice, comments, canModerate, contest, sections,
+    }));
   });
 
   // Comments and replies: anyone signed in can comment on a verified recipe.

@@ -45,6 +45,10 @@ sends every request that isn't a file in `public/` to it.
 - The home screen has three options: **Recipes**, **Create recipe** and
   **My recipes**.
 - Recipes has a search bar that matches recipe names and ingredients.
+- **Sections** (Burgers, Chicken, Salad, Desserts, Simple Snacks, …) show as
+  buttons at the top of Recipes, and search works inside a section. The admin
+  adds, renames and deletes sections on **Manage sections**, and ticks a recipe's
+  sections on its page. A recipe can be in several sections.
 - Create recipe has an optional **Upload photo** button. The browser shrinks
   the photo to at most 1000px before upload, and the photo follows the same
   rules as its recipe: only the author and the admin see it until it's verified.

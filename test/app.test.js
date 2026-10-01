@@ -516,3 +516,70 @@ test('the admin can edit or delete any published recipe, and nobody else can', a
   assert.strictEqual((await get(`/recipes/${tacos}`, other)).status, 404);
   assert.doesNotMatch(await (await get('/recipes', other)).text(), /Ollie Fish Tacos/);
 });
+
+test('the admin sorts published recipes into sections that everyone can browse', async () => {
+  const cook = await signup('Quin', 'quin@example.com');
+  const other = await signup('Rex', 'rex@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+
+  // Only the admin manages sections.
+  assert.strictEqual((await get('/sections', other)).status, 404);
+  assert.strictEqual((await post('/sections', { name: 'Sneaky', emoji: '😈' }, other)).status, 404);
+  for (const [name, emoji] of [['Burgers', '🍔'], ['Chicken', '🍗'], ['Simple Snacks', '🍿']]) {
+    await post('/sections', { name, emoji }, admin);
+  }
+  assert.strictEqual((await post('/sections', { name: 'Chicken', emoji: '' }, admin)).status, 400, 'no duplicate names');
+  const manage = await (await get('/sections', admin)).text();
+  const idOf = (name) => [...manage.slice(0, manage.indexOf(`value="${name}"`)).matchAll(/action="\/sections\/(\d+)"/g)].pop()[1];
+  const burgers = idOf('Burgers');
+  const chicken = idOf('Chicken');
+
+  await post('/recipes', { title: 'Quin Chicken Burger', ingredients: 'Chicken\nBun', steps: 'Grill' }, cook);
+  await post('/recipes', { title: 'Quin Crispy Tenders', ingredients: 'Chicken', steps: 'Fry' }, cook);
+  const mine = await (await get('/recipes/mine', cook)).text();
+  const rid = (t) => [...mine.matchAll(/href="\/recipes\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g)].find((m) => m[2].includes(t))[1];
+  const burger = rid('Chicken Burger');
+  const tenders = rid('Crispy Tenders');
+  for (const id of [burger, tenders]) await post(`/recipes/${id}/verify`, {}, admin);
+
+  // The admin ticks sections on a recipe; a recipe can be in more than one.
+  assert.match(await (await get(`/recipes/${burger}`, admin)).text(), /name="section_ids"/);
+  assert.doesNotMatch(await (await get(`/recipes/${burger}`, cook)).text(), /name="section_ids"/, 'only the admin sees the checkboxes');
+  assert.strictEqual((await post(`/recipes/${burger}/sections`, { section_ids: chicken }, cook)).status, 404);
+  const body = new URLSearchParams([['section_ids', burgers], ['section_ids', chicken], ['section_ids', '999999']]);
+  await fetch(`${base}/recipes/${burger}/sections`, {
+    method: 'POST', redirect: 'manual', headers: { cookie: admin, 'content-type': 'application/x-www-form-urlencoded' }, body,
+  });
+  await post(`/recipes/${tenders}/sections`, { section_ids: chicken }, admin);
+
+  // Everyone sees the section buttons, and each one filters the list.
+  let html = await (await get('/recipes', other)).text();
+  assert.match(html, /class="section-chips"/);
+  assert.match(html, />🍗<\/span> Chicken</);
+  assert.doesNotMatch(html, /Manage sections/, 'only the admin gets the manage link');
+  html = await (await get(`/recipes?section=${chicken}`, other)).text();
+  assert.match(html, /Quin Chicken Burger/);
+  assert.match(html, /Quin Crispy Tenders/);
+  html = await (await get(`/recipes?section=${burgers}`, other)).text();
+  assert.match(html, /Quin Chicken Burger/);
+  assert.doesNotMatch(html, /Quin Crispy Tenders/);
+  html = await (await get(`/recipes?section=${chicken}&q=tenders`, other)).text();
+  assert.match(html, /Quin Crispy Tenders/, 'search works inside a section');
+  assert.doesNotMatch(html, /Quin Chicken Burger/);
+  const snacks = idOf('Simple Snacks');
+  assert.match(await (await get(`/recipes?section=${snacks}`, other)).text(), /No recipes in Simple Snacks yet/);
+
+  // The recipe page shows its sections to everyone.
+  html = await (await get(`/recipes/${burger}`, other)).text();
+  assert.match(html, new RegExp(`href="/recipes\\?section=${burgers}" class="chip small"`));
+  assert.match(html, new RegExp(`href="/recipes\\?section=${chicken}" class="chip small"`));
+
+  // Renaming and deleting sections; deleting keeps the recipes.
+  await post(`/sections/${chicken}`, { name: 'Chicken Dishes', emoji: '🐔' }, admin);
+  assert.match(await (await get('/recipes', other)).text(), />🐔<\/span> Chicken Dishes</);
+  await post(`/sections/${burgers}/delete`, {}, admin);
+  html = await (await get('/recipes', other)).text();
+  assert.doesNotMatch(html, /Burgers</);
+  assert.match(html, /Quin Chicken Burger/, 'recipes stay after their section is deleted');
+});
