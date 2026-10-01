@@ -476,29 +476,41 @@ test('recipes can show an Instagram or YouTube video, and only real video links 
   assert.doesNotMatch(await (await get(`/recipes/${id}`, cook)).text(), /<iframe/);
 });
 
-test('nobody can edit someone else\'s recipe, not even the admin, but the admin can delete it', async () => {
+test('only the admin can edit and delete everyone\'s recipes', async () => {
   const cook = await signup('Ollie', 'ollie@example.com');
   const other = await signup('Pia', 'pia@example.com');
   const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
   const admin = login.headers.get('set-cookie').split(';')[0];
   await post('/recipes', { title: 'Ollie Tacos', ingredients: 'Tortillas', steps: 'Fill' }, cook);
+  await post('/recipes', { title: 'Ollie Draft', ingredients: 'x', steps: 'y' }, cook);
   const mine = await (await get('/recipes/mine', cook)).text();
-  const tacos = [...mine.matchAll(/href="\/recipes\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g)].find((m) => m[2].includes('Ollie Tacos'))[1];
+  const idOf = (t) => [...mine.matchAll(/href="\/recipes\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g)].find((m) => m[2].includes(t))[1];
+  const tacos = idOf('Ollie Tacos');
+  const draft = idOf('Ollie Draft');
   await post(`/recipes/${tacos}/verify`, {}, admin);
 
-  // The admin gets Delete but no Edit on someone else's recipe, and can't edit it by URL either.
-  let html = await (await get(`/recipes/${tacos}`, admin)).text();
-  assert.doesNotMatch(html, new RegExp(`href="/recipes/${tacos}/edit"`));
-  assert.match(html, /Delete recipe/);
-  assert.strictEqual((await get(`/recipes/${tacos}/edit`, admin)).status, 404);
-  assert.strictEqual((await post(`/recipes/${tacos}/edit`, { title: 'Changed', ingredients: 'x', steps: 'y' }, admin)).status, 404);
-  assert.match(await (await get(`/recipes/${tacos}`, other)).text(), /Ollie Tacos/, 'the recipe is unchanged');
-
-  // Other people get neither.
-  html = await (await get(`/recipes/${tacos}`, other)).text();
+  // Other people can't edit or delete someone else's recipe, by button or by URL.
+  let html = await (await get(`/recipes/${tacos}`, other)).text();
   assert.doesNotMatch(html, /\/edit"|Delete recipe/);
+  assert.strictEqual((await get(`/recipes/${tacos}/edit`, other)).status, 404);
+  assert.strictEqual((await post(`/recipes/${tacos}/edit`, { title: 'Hacked', ingredients: 'x', steps: 'y' }, other)).status, 404);
   assert.strictEqual((await post(`/recipes/${tacos}/delete`, {}, other)).status, 404);
   assert.strictEqual((await post(`/recipes/${tacos}/delete`, {}, cook)).status, 404, 'authors cannot delete either');
+
+  // The admin gets Edit and Delete on everyone's recipes, published or waiting.
+  html = await (await get(`/recipes/${tacos}`, admin)).text();
+  assert.match(html, new RegExp(`href="/recipes/${tacos}/edit"`));
+  assert.match(html, /Delete recipe/);
+  assert.match(await (await get(`/recipes/${draft}`, admin)).text(), new RegExp(`href="/recipes/${draft}/edit"`));
+
+  // The admin's edits keep the recipe's status and author, and the form says whose it is.
+  assert.match(await (await get(`/recipes/${tacos}/edit`, admin)).text(), /editing Ollie's recipe as the admin/);
+  await post(`/recipes/${tacos}/edit`, { title: 'Ollie Fish Tacos', ingredients: 'Tortillas\nFish', steps: 'Fill' }, admin);
+  html = await (await get(`/recipes/${tacos}`, other)).text();
+  assert.match(html, /Ollie Fish Tacos/, 'still published after the admin edits it');
+  assert.match(html, /by[\s\S]*?Ollie/, 'still Ollie\'s recipe');
+  await post(`/recipes/${draft}/edit`, { title: 'Ollie Draft Fixed', ingredients: 'x', steps: 'y' }, admin);
+  assert.match(await (await get('/recipes/unverified', admin)).text(), /Ollie Draft Fixed/, 'a waiting recipe stays waiting');
 
   // The author can still edit their own.
   assert.match(await (await get(`/recipes/${tacos}`, cook)).text(), new RegExp(`href="/recipes/${tacos}/edit"`));
@@ -506,7 +518,7 @@ test('nobody can edit someone else\'s recipe, not even the admin, but the admin 
   // Deleting a published recipe takes it away for everyone.
   const res = await post(`/recipes/${tacos}/delete`, {}, admin);
   assert.match(res.headers.get('location'), /^\/recipes\?deleted=/);
-  assert.match(await (await get(res.headers.get('location'), admin)).text(), /Deleted &quot;Ollie Tacos&quot;/);
+  assert.match(await (await get(res.headers.get('location'), admin)).text(), /Deleted &quot;Ollie Fish Tacos&quot;/);
   assert.strictEqual((await get(`/recipes/${tacos}`, other)).status, 404);
 });
 

@@ -494,16 +494,20 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     res.redirect(`/recipes/${Number(comment.recipe_id)}${thread}#comments`);
   });
 
-  // Editing: only the person who wrote the recipe, the admin included (the admin can
-  // delete other people's recipes but not change them). A verified recipe goes back to
-  // be verified after an edit, so changes are reviewed too; the admin's own edits stay published.
+  // Editing: people edit their own recipes; only the admin can edit everyone's.
+  // A verified recipe goes back to be verified after an author's edit, so changes are
+  // reviewed too; the admin's edits leave a recipe published (or waiting) as it was.
   async function editableRecipe(req) {
     const id = recipeId(req);
     const [recipe] = id ? await recipes(req, 'WHERE recipes.id = $2', [id]) : [];
-    return recipe && recipe.author_id === req.user.id ? recipe : null;
+    if (!recipe) return null;
+    return recipe.author_id === req.user.id || isAdmin(req.user) ? recipe : null;
   }
 
-  const formExtras = (req, recipe) => ({ sendsBackToReview: recipe.verified && !isAdmin(req.user) });
+  const formExtras = (req, recipe) => ({
+    sendsBackToReview: recipe.verified && !isAdmin(req.user),
+    editingFor: recipe.author_id === req.user.id ? null : recipe.author,
+  });
 
   app.get('/recipes/:id/edit', async (req, res) => {
     const recipe = await editableRecipe(req);
@@ -537,8 +541,9 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
       return fail("That photo couldn't be used. Try a different JPEG or PNG photo.");
     }
     await db.query(
-      'UPDATE recipes SET title = $1, ingredients = $2, steps = $3, verified = $4, video_url = $5 WHERE id = $6 AND author_id = $7',
-      [values.title, values.ingredients, values.steps, keepVerified, video?.link ?? null, recipe.id, req.user.id],
+      // editableRecipe() above already checked that this is the author or the admin.
+      'UPDATE recipes SET title = $1, ingredients = $2, steps = $3, verified = $4, video_url = $5 WHERE id = $6',
+      [values.title, values.ingredients, values.steps, keepVerified, video?.link ?? null, recipe.id],
     );
     if (photo) {
       await db.query(
