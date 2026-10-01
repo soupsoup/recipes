@@ -435,3 +435,43 @@ test('the recipe creator can turn comments off and back on', async () => {
   assert.doesNotMatch(html, /sneaky/, 'nothing could be posted while comments were off');
   assert.match(html, /1 Comment</);
 });
+
+test('recipes can show an Instagram or YouTube video, and only real video links are accepted', async () => {
+  const cook = await signup('Vid', 'vid@example.com');
+  const viewer = await signup('Wat', 'wat@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+
+  let res = await post('/recipes', {
+    title: 'Video Wings', ingredients: 'Wings', steps: 'Bake', video_url: 'https://www.instagram.com/p/Cz5AROnOK3l/?igsh=abc',
+  }, cook);
+  assert.strictEqual(res.status, 302);
+  const mine = await (await get('/recipes/mine', cook)).text();
+  const id = [...mine.matchAll(/href="\/recipes\/(\d+)"[^>]*>([\s\S]*?)<\/a>/g)].find((m) => m[2].includes('Video Wings'))[1];
+  assert.match(mine, /class="play-badge"/, 'cards show that the recipe has a video');
+  await post(`/recipes/${id}/verify`, {}, admin);
+
+  let html = await (await get(`/recipes/${id}`, viewer)).text();
+  assert.match(html, /<iframe src="https:\/\/www\.instagram\.com\/p\/Cz5AROnOK3l\/embed"/);
+  assert.match(html, /Watch on Instagram/);
+  assert.doesNotMatch(html, /igsh=abc/, 'tracking bits of the pasted link are dropped');
+
+  // Bad links are turned away with a message, and the rest of the form is kept.
+  for (const bad of ['https://evil.example/reel/abc', 'javascript:alert(1)', 'https://www.instagram.com/someuser/', 'hello']) {
+    res = await post('/recipes', { title: 'Bad Video', ingredients: 'x', steps: 'y', video_url: bad }, cook);
+    assert.strictEqual(res.status, 400, bad);
+    const page = await res.text();
+    assert.match(page, /video link didn&#39;t work/);
+    assert.match(page, /value="Bad Video"/);
+  }
+
+  // Editing: switch to a YouTube Short, then remove the video.
+  const form = await (await get(`/recipes/${id}/edit`, cook)).text();
+  assert.match(form, /name="video_url"[^>]*value="https:\/\/www\.instagram\.com\/p\/Cz5AROnOK3l\/"/);
+  await post(`/recipes/${id}/edit`, { title: 'Video Wings', ingredients: 'Wings', steps: 'Bake', video_url: 'https://youtube.com/shorts/dQw4w9WgXcQ' }, cook);
+  html = await (await get(`/recipes/${id}`, cook)).text();
+  assert.match(html, /<iframe src="https:\/\/www\.youtube-nocookie\.com\/embed\/dQw4w9WgXcQ"/);
+  assert.match(html, /video-frame youtube vertical/);
+  await post(`/recipes/${id}/edit`, { title: 'Video Wings', ingredients: 'Wings', steps: 'Bake', video_url: '' }, cook);
+  assert.doesNotMatch(await (await get(`/recipes/${id}`, cook)).text(), /<iframe/);
+});

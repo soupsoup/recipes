@@ -48,6 +48,10 @@ sends every request that isn't a file in `public/` to it.
 - Create recipe has an optional **Upload photo** button. The browser shrinks
   the photo to at most 1000px before upload, and the photo follows the same
   rules as its recipe: only the author and the admin see it until it's verified.
+- Recipes can have a **Video link**: paste an Instagram post/reel or YouTube
+  video/Short link and it plays on the recipe page (cards get a ▶ badge). Only
+  links `lib/video.js` recognizes are accepted, and the player is built from the
+  video's ID, never from the pasted text.
 - Only the person who made a recipe can edit it (**Edit recipe** on the recipe,
   or **Edit** in My recipes). Editing a verified recipe sends it back to be
   verified, unless the admin edited their own recipe.

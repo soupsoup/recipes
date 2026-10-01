@@ -5,6 +5,7 @@ const auth = require('./lib/auth');
 const views = require('./lib/views');
 const { AVATAR_PRESETS } = require('./lib/presets');
 const { halloween, contestStart, contestEnd } = require('./lib/halloween');
+const { parseVideo } = require('./lib/video');
 
 const COOKIE = 'ccr_session';
 
@@ -18,6 +19,7 @@ function toRecipe(row) {
     favorited: Boolean(row.favorited),
     photoVersion: row.photo_version ? Number(row.photo_version) : null,
     commentsOff: Boolean(row.comments_off),
+    video: row.video_url ? parseVideo(row.video_url) : null,
     authorPerson: {
       id: Number(row.author_id),
       name: row.author,
@@ -126,7 +128,7 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
   // $1 is always the signed-in user's id, so each row says whether they favorited it.
   const recipeQuery = `
     SELECT recipes.id, recipes.title, recipes.ingredients, recipes.steps, recipes.author_id, recipes.verified,
-      recipes.comments_off,
+      recipes.comments_off, recipes.video_url,
       to_char(recipes.created_at, 'YYYY-MM-DD') AS created_on, users.name AS author,
       CASE WHEN recipes.photo IS NULL THEN NULL
         ELSE floor(extract(epoch FROM recipes.photo_updated_at) * 1000)::bigint END AS photo_version,
@@ -281,9 +283,12 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
       ingredients: (req.body.ingredients || '').trim(),
       steps: (req.body.steps || '').trim(),
       photo: String(req.body.photo || ''),
+      video_url: String(req.body.video_url || '').trim(),
     };
     const fail = (error) => res.status(400).send(views.newRecipePage({ user: req.user, error, values }));
     if (!values.title || !values.ingredients || !values.steps) return fail('Please fill in every field.');
+    const video = values.video_url ? parseVideo(values.video_url) : null;
+    if (values.video_url && !video) return fail('That video link didn\'t work. Paste a link to an Instagram post or reel, or a YouTube video.');
     // The photo is optional, and goes through verification along with the rest of the recipe.
     const photo = values.photo ? parseImage(values.photo, MAX_PHOTO_BYTES) : null;
     if (values.photo && !photo) {
@@ -291,9 +296,9 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
       return fail("That photo couldn't be used. Try a different JPEG or PNG photo.");
     }
     await db.query(
-      `INSERT INTO recipes (title, ingredients, steps, author_id, photo, photo_type, photo_updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $5::bytea IS NULL THEN NULL ELSE now() END)`,
-      [values.title, values.ingredients, values.steps, req.user.id, photo?.bytes ?? null, photo?.type ?? null],
+      `INSERT INTO recipes (title, ingredients, steps, author_id, photo, photo_type, photo_updated_at, video_url)
+       VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $5::bytea IS NULL THEN NULL ELSE now() END, $7)`,
+      [values.title, values.ingredients, values.steps, req.user.id, photo?.bytes ?? null, photo?.type ?? null, video?.link ?? null],
     );
     res.redirect('/recipes/mine?submitted=1');
   });
@@ -411,7 +416,7 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     const recipe = await ownRecipe(req);
     if (!recipe) return res.status(404).send(views.notFoundPage({ user: req.user }));
     res.send(views.recipeFormPage({
-      user: req.user, recipe, values: recipe, sendsBackToReview: recipe.verified && !isAdmin(req.user),
+      user: req.user, recipe, values: { ...recipe, video_url: recipe.video?.link ?? '' }, sendsBackToReview: recipe.verified && !isAdmin(req.user),
     }));
   });
 
@@ -424,20 +429,23 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
       steps: (req.body.steps || '').trim(),
       photo: String(req.body.photo || ''),
       remove_photo: req.body.remove_photo === '1' ? '1' : '0',
+      video_url: String(req.body.video_url || '').trim(),
     };
     const keepVerified = recipe.verified && isAdmin(req.user);
     const fail = (error) => res.status(400).send(views.recipeFormPage({
       user: req.user, recipe, values, error, sendsBackToReview: recipe.verified && !keepVerified,
     }));
     if (!values.title || !values.ingredients || !values.steps) return fail('Please fill in every field.');
+    const video = values.video_url ? parseVideo(values.video_url) : null;
+    if (values.video_url && !video) return fail('That video link didn\'t work. Paste a link to an Instagram post or reel, or a YouTube video.');
     const photo = values.photo ? parseImage(values.photo, MAX_PHOTO_BYTES) : null;
     if (values.photo && !photo) {
       values.photo = '';
       return fail("That photo couldn't be used. Try a different JPEG or PNG photo.");
     }
     await db.query(
-      'UPDATE recipes SET title = $1, ingredients = $2, steps = $3, verified = $4 WHERE id = $5 AND author_id = $6',
-      [values.title, values.ingredients, values.steps, keepVerified, recipe.id, req.user.id],
+      'UPDATE recipes SET title = $1, ingredients = $2, steps = $3, verified = $4, video_url = $7 WHERE id = $5 AND author_id = $6',
+      [values.title, values.ingredients, values.steps, keepVerified, recipe.id, req.user.id, video?.link ?? null],
     );
     if (photo) {
       await db.query(

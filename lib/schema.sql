@@ -68,3 +68,4 @@ CREATE TABLE IF NOT EXISTS contest_winners (
   hearts INT NOT NULL,
   decided_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS video_url TEXT;
