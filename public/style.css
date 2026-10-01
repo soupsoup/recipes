@@ -528,3 +528,66 @@ body.home.christmas .menu .btn:hover { background: #1A3463; border-color: #FF5A6
 @media (prefers-reduced-motion: reduce) {
   .snow, .village .bulb { animation: none; }
 }
+
+/* Halloween main menu: a haunted house under the moon */
+body.home.spooky { background: linear-gradient(#120821 0%, #2A1544 60%, #3D1F5C 100%); background-attachment: fixed; }
+.haunted-scene { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.haunted-scene .moon {
+  position: absolute; top: 12vh; right: 10vw; width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 36%, #FFF8DC 0%, #F6E7A6 60%, #E9D27E 100%);
+  box-shadow: 0 0 60px 18px rgba(246, 231, 166, 0.35);
+}
+.graveyard { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 42vh; min-height: 210px; }
+/* The house stands on the back hill: to the right of the menu on wide screens, behind it on phones. */
+.haunted-house {
+  position: absolute; right: 3vw; bottom: calc(max(42vh, 210px) * 0.24);
+  width: min(300px, 27vw); height: auto;
+}
+.haunted-window { filter: drop-shadow(0 0 6px #FF9A2E); animation: flicker 3.5s ease-in-out infinite; }
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.85; }
+  50% { opacity: 0.55; }
+  55% { opacity: 0.9; }
+}
+.zombie { transform-box: fill-box; transform-origin: 50% 100%; animation: shamble 2.6s ease-in-out infinite alternate; }
+.zombie.slow { animation-duration: 3.4s; animation-delay: -1s; }
+@keyframes shamble {
+  from { transform: translateX(-6px) rotate(-6deg); }
+  to { transform: translateX(10px) rotate(5deg); }
+}
+.skeleton.waving .arm { transform-box: view-box; transform-origin: 300px 220px; animation: wave 0.9s ease-in-out infinite alternate; }
+@keyframes wave {
+  from { transform: rotate(-12deg); }
+  to { transform: rotate(14deg); }
+}
+.hang-spider { animation: dangle ease-in-out infinite alternate; }
+@keyframes dangle {
+  from { transform: translateY(-8px); }
+  to { transform: translateY(12px); }
+}
+.pumpkins text { filter: drop-shadow(0 0 6px rgba(255, 140, 30, 0.8)); }
+/* One witch on a broomstick, crossing the sky past the moon */
+.witch {
+  position: absolute; top: 14vh; left: 0; display: flex; align-items: flex-end;
+  animation: fly 16s linear infinite;
+}
+.witch span { font-size: 40px; margin-right: -64px; position: relative; z-index: 1; transform: scaleX(-1); }
+@keyframes fly {
+  0% { transform: translate(-140px, 10vh) rotate(-6deg); }
+  50% { transform: translate(50vw, 0) rotate(-2deg); }
+  100% { transform: translate(110vw, -6vh) rotate(-8deg); }
+}
+/* Room to scroll the menu up and see the graveyard underneath */
+body.home.spooky main { padding-bottom: 22vh; }
+@media (max-width: 900px) {
+  .haunted-house { right: auto; left: 50%; transform: translateX(-50%); width: min(340px, 86vw); }
+  body.home.spooky .menu .btn { background: rgba(23, 12, 38, 0.55); }
+}
+@media (max-width: 480px) {
+  .haunted-scene .moon { width: 80px; height: 80px; top: 16vh; right: 6vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zombie, .skeleton .arm, .hang-spider, .haunted-window, .witch { animation: none; }
+  .witch { transform: translate(55vw, 0); }
+}

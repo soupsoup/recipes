@@ -67,8 +67,9 @@ sends every request that isn't a file in `public/` to it.
   author is labelled **Chef**. People can delete their own comments; the recipe's
   author and the admin can delete any comment on it. The author can also
   **Turn off comments**, which hides them (without deleting) until turned back on.
-- **Halloween (every October, US Eastern time):** the main menu turns spooky
-  (🎃 👻 🦇 🍬 🕷️ float by) and shows the **Spooky Food Contest**. Creators enter a
+- **Halloween (every October, US Eastern time):** the main menu turns into a
+  haunted house under the moon, with skeletons, zombies, pumpkins, hanging spiders
+  and one witch flying past (🎃 👻 🦇 🍬 🕷️ float by too), and shows the **Spooky Food Contest**. Creators enter a
   verified recipe from its page; hearts from other people given in October are the votes. After
   Halloween the winner is saved, gets a 👑 badge on the recipe and profile, and is
   announced on the main menu until November 14. Preview it locally with

@@ -131,10 +131,17 @@ test('the header turns purple with spiders in October and candy-cane striped in 
   clock = new Date('2026-10-15T12:00:00-04:00');
   assert.strictEqual(await headerOf('/recipes'), 'top event halloween', 'every page, not just the main menu');
   assert.match(await page('/', someone), /class="spider s\d"/);
+  const spookyHome = await page('/', someone);
+  assert.match(spookyHome, /class="haunted-scene"/, 'haunted house behind the main menu');
+  assert.match(spookyHome, /class="skeleton waving"/);
+  assert.match(spookyHome, /class="zombie"/);
+  assert.match(spookyHome, /🎃/);
+  assert.match(spookyHome, /class="hang-spider"/);
+  assert.strictEqual((spookyHome.match(/class="witch"/g) || []).length, 1, 'exactly one witch');
 
   clock = new Date('2026-11-20T12:00:00-05:00');
   assert.strictEqual(await headerOf('/'), 'top');
-  assert.doesNotMatch(await page('/', someone), /class="spider|candy-cane|winter-scene/);
+  assert.doesNotMatch(await page('/', someone), /class="spider|candy-cane|winter-scene|haunted-scene/);
 
   clock = new Date('2026-11-30T23:30:00-05:00');
   assert.strictEqual(await headerOf('/'), 'top', 'not yet on November 30');
