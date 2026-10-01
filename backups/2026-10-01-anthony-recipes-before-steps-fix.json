@@ -1,0 +1,23 @@
+{
+  "note": "Recipes 14, 16 and 17 by Anthony DeRosa, exactly as they were before the admin asked Claude to fill in their missing steps on 2026-10-01. To undo, set ingredients and steps back to these values.",
+  "recipes": [
+    {
+      "id": 14,
+      "title": "White Wine Garlic Pan Sauce",
+      "ingredients": "1 tbsp butter plus 3 tbsp more for later\r\n1 large shallot, minced\r\nsalt to taste\r\n4 cloves garlic, minced\r\n1 cup dry white wine (sauvignon blanc)\r\n1 cup chicken stock\r\nminced parsley or chives for garnish\r\n(Full method at source link.)",
+      "steps": "From the caption, full preparation continues at the creator's blog — see source."
+    },
+    {
+      "id": 16,
+      "title": "Upside Down Sicilian — Pizza Dough",
+      "ingredients": "575g bread flour\r\n385g water\r\n12g salt\r\n8g sugar\r\n2.8g instant yeast\r\n17g vegetable shortening\r\nPortion dough balls to 879g",
+      "steps": "Dough formula only (toppings/bake not specified in source)."
+    },
+    {
+      "id": 17,
+      "title": "Chicken Bacon Ranch Sliders",
+      "ingredients": "Chicken\r\nbacon\r\nKing's Hawaiian rolls\r\ncheese\r\ngreen onion\r\nranch dressing",
+      "steps": "Season and grill chicken; cook bacon.\r\nAssemble sliders on King's Hawaiian rolls with cheese, chicken, green onion, and bacon; bake 15 minutes.\r\nServe with ranch.\r\n(Full in-depth recipe at creator's website — see source.)"
+    }
+  ]
+}
