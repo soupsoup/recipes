@@ -35,7 +35,7 @@ async function signup(name, email) {
 }
 
 test('signed-out visitors are sent to sign in', async () => {
-  for (const path of ['/', '/recipes', '/recipes/new']) {
+  for (const path of ['/recipes', '/recipes/new']) {
     const res = await get(path);
     assert.strictEqual(res.status, 302);
     assert.strictEqual(res.headers.get('location'), '/login');
@@ -43,8 +43,12 @@ test('signed-out visitors are sent to sign in', async () => {
 });
 
 test('link previews work without signing in', async () => {
-  // Social media sites follow the redirect from / to the sign-in page and read its tags.
-  const html = await (await get('/login')).text();
+  // Signed out, the main address shows the sign-in page itself, so social media sites
+  // read its tags without following a redirect.
+  const res = await get('/');
+  assert.strictEqual(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /<form method="post" action="\/login"/);
   assert.match(html, /<meta property="og:title" content="Cool Cooking Recipes">/);
   assert.match(html, /<meta property="og:image" content="https:\/\/coolcookingrecipes\.vercel\.app\/social-card\.png">/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);

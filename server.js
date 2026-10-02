@@ -122,6 +122,10 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     res.redirect('/login');
   });
 
+  // Signed-out visitors to the main address get the sign-in page right there, with no
+  // redirect, so link previews on social media read its share tags.
+  app.get('/', (req, res, next) => (req.user ? next() : res.send(views.authPage({ mode: 'login' }))));
+
   // Everything below needs a signed-in user.
   app.use((req, res, next) => (req.user ? next() : res.redirect('/login')));
 
