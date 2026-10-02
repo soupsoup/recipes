@@ -92,6 +92,15 @@ sends every request that isn't a file in `public/` to it.
 - The admin sees an **Unverified recipes** section at the top of Recipes.
   Pressing **Verify** moves a recipe into the public list.
 
+## Link previews
+
+Sharing the site link on social media or in a chat shows `public/social-card.png`
+(1200×630) with the title and a short description. The tags sit on every page,
+including the sign-in page that link previews land on. They point at
+`https://coolcookingrecipes.vercel.app`; set `SITE_URL` if the site moves. Facebook
+and others cache previews, so after changing the card, refresh it with their
+sharing debugger.
+
 ## Tests
 
 ```sh

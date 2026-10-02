@@ -42,6 +42,17 @@ test('signed-out visitors are sent to sign in', async () => {
   }
 });
 
+test('link previews work without signing in', async () => {
+  // Social media sites follow the redirect from / to the sign-in page and read its tags.
+  const html = await (await get('/login')).text();
+  assert.match(html, /<meta property="og:title" content="Cool Cooking Recipes">/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/coolcookingrecipes\.vercel\.app\/social-card\.png">/);
+  assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);
+  const image = await get('/social-card.png');
+  assert.strictEqual(image.status, 200);
+  assert.strictEqual(image.headers.get('content-type'), 'image/png');
+});
+
 test('home page shows the welcome text and all three options', async () => {
   const cookie = await signup('Sam', 'sam@example.com');
   const html = await (await get('/', cookie)).text();
