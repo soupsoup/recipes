@@ -122,6 +122,23 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     res.redirect('/login');
   });
 
+  // Reset links are opened by signed-out members, so these sit above the sign-in wall.
+  app.get('/reset/:token', async (req, res) => {
+    const reset = await auth.findPasswordReset(db, req.params.token);
+    res.status(reset ? 200 : 410).send(views.resetPasswordPage({ token: req.params.token, expired: !reset }));
+  });
+
+  app.post('/reset/:token', async (req, res) => {
+    const password = req.body.password || '';
+    if (password.length < 8) {
+      return res.status(400).send(views.resetPasswordPage({ token: req.params.token, error: 'Password must be at least 8 characters.' }));
+    }
+    if (!(await auth.usePasswordReset(db, req.params.token, password))) {
+      return res.status(410).send(views.resetPasswordPage({ expired: true }));
+    }
+    res.redirect('/login');
+  });
+
   // Signed-out visitors to the main address get the sign-in page right there, with no
   // redirect, so link previews on social media read its share tags.
   app.get('/', (req, res, next) => (req.user ? next() : res.send(views.authPage({ mode: 'login' }))));
@@ -130,6 +147,17 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
   app.use((req, res, next) => (req.user ? next() : res.redirect('/login')));
 
   const requireAdmin = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).send(views.notFoundPage({ user: req.user })));
+
+  app.get('/admin/reset', requireAdmin, (req, res) => res.send(views.adminResetPage({ user: req.user })));
+
+  app.post('/admin/reset', requireAdmin, async (req, res) => {
+    const email = (req.body.email || '').trim().toLowerCase();
+    const [target] = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (!target) return res.status(404).send(views.adminResetPage({ user: req.user, email, error: 'No account has that email.' }));
+    const token = await auth.createPasswordReset(db, Number(target.id));
+    const base = process.env.COOL_RECIPES_URL || `${req.protocol}://${req.get('host')}`;
+    res.send(views.adminResetPage({ user: req.user, email, link: `${base}/reset/${token}` }));
+  });
 
   // $1 is always the signed-in user's id, so each row says whether they favorited it.
   const recipeQuery = `

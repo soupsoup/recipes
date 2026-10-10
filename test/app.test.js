@@ -603,3 +603,27 @@ test('the admin sorts published recipes into sections that everyone can browse',
   assert.doesNotMatch(html, /Burgers</);
   assert.match(html, /Quin Chicken Burger/, 'recipes stay after their section is deleted');
 });
+
+test('admin makes a one-time reset link that sets a new password', async () => {
+  await signup('Joyce', 'joyce@example.com');
+  const login = await post('/login', { email: 'admin@example.com', password: 'password123' });
+  const admin = login.headers.get('set-cookie').split(';')[0];
+
+  assert.strictEqual((await post('/admin/reset', { email: 'nobody@example.com' }, admin)).status, 404);
+  const html = await (await post('/admin/reset', { email: 'joyce@example.com' }, admin)).text();
+  const path = /value="[^"]*(\/reset\/[0-9a-f]{64})"/.exec(html)[1];
+
+  assert.strictEqual((await get(path)).status, 200);
+  assert.strictEqual((await post(path, { password: 'short' })).status, 400);
+  assert.strictEqual((await post(path, { password: 'brandnewpass' })).status, 302);
+  assert.strictEqual((await post('/login', { email: 'joyce@example.com', password: 'brandnewpass' })).status, 302);
+  assert.strictEqual((await post('/login', { email: 'joyce@example.com', password: 'password123' })).status, 401);
+  assert.strictEqual((await get(path)).status, 410, 'link works once');
+  assert.strictEqual((await post(path, { password: 'anotherpass1' })).status, 410);
+});
+
+test('only the admin can make reset links', async () => {
+  const cookie = await signup('Lee', 'lee.nonadmin@example.com');
+  assert.strictEqual((await post('/admin/reset', { email: 'joyce@example.com' }, cookie)).status, 404);
+  assert.strictEqual((await get('/admin/reset', cookie)).status, 404);
+});
