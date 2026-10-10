@@ -58,7 +58,7 @@ test('link previews work without signing in', async () => {
 });
 
 test('home page shows the welcome text and all three options', async () => {
-  const cookie = await signup('Pat', 'pat.noadmin@example.com');
+  const cookie = await signup('Sam', 'sam@example.com');
   const html = await (await get('/', cookie)).text();
   assert.match(html, /Welcome to Cool Cooking Recipes/);
   assert.match(html, /href="\/recipes"[^>]*>Recipes</);
@@ -623,7 +623,7 @@ test('admin makes a one-time reset link that sets a new password', async () => {
 });
 
 test('only the admin can make reset links', async () => {
-  const cookie = await signup('Pat', 'pat.noadmin@example.com');
+  const cookie = await signup('Lee', 'lee.nonadmin@example.com');
   assert.strictEqual((await post('/admin/reset', { email: 'joyce@example.com' }, cookie)).status, 404);
   assert.strictEqual((await get('/admin/reset', cookie)).status, 404);
 });
