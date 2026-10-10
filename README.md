@@ -79,6 +79,11 @@ sends every request that isn't a file in `public/` to it.
   red-and-white candy-cane stripes, and the main menu becomes a snowy night village
   (houses with glowing windows and twinkling lights) with candy canes and presents
   falling. Preview with `SPOOKY_PREVIEW_DATE=2026-12-10 npm start`.
+- **Password resets:** there is no email sending. The admin opens `/admin/reset`,
+  enters a member's email, and gets a one-time link (good for 24 hours) to send
+  them. The link opens `/reset/<token>`, where they pick a new password; that
+  signs them out everywhere. Only a hash of the token is stored. Run
+  `supabase/migrations/20261010000000_add_password_resets.sql` before using it.
 - My recipes lists everything you've shared, marked verified or waiting.
 - Each verified recipe has a heart. Pressing it saves the recipe to your
   **Favorites** (a button at the top of Recipes); pressing it again removes it.
