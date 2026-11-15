@@ -707,7 +707,9 @@ function appFromEnv() {
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 3000;
-  appFromEnv().listen(port, () => console.log(`Cool Cooking Recipes running at http://localhost:${port}`));
+  // HOST=127.0.0.1 on the VPS keeps the app reachable only through nginx.
+  const host = process.env.HOST || undefined;
+  appFromEnv().listen(port, host, () => console.log(`Cool Cooking Recipes running at http://${host || 'localhost'}:${port}`));
 }
 
 module.exports = { createApp, appFromEnv };
