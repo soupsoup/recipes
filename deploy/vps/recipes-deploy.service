@@ -1,0 +1,16 @@
+[Unit]
+Description=Deploy the newest recipes commit if main changed
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=recipes
+Group=recipes
+WorkingDirectory=/var/www/recipes
+Environment=NODE_OPTIONS=--max-old-space-size=1024
+ExecStart=/var/www/recipes/deploy/vps/deploy.sh
+# Builds yield the CPU to the live sites.
+Nice=10
+CPUWeight=20
+IOSchedulingClass=idle
+TimeoutStartSec=15min

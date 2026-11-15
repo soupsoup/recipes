@@ -1,0 +1,23 @@
+[Unit]
+Description=Cool Cooking Recipes (Express)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=recipes
+Group=recipes
+WorkingDirectory=/var/www/recipes
+EnvironmentFile=/etc/recipes.env
+Environment=PORT=4410
+Environment=HOST=127.0.0.1
+ExecStart=/usr/bin/node --no-warnings server.js
+Restart=on-failure
+RestartSec=3
+MemoryMax=400M
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/recipes
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
