@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Publishes the newest commit on main to the VPS. The same script ships in
+# Publishes the newest commit on the production branch (app.conf) to the VPS. The same script ships in
 # every app's deploy/vps/; app.conf beside it holds what differs per app.
 #
 # <app>-deploy.timer runs it every minute. When main hasn't moved it exits
