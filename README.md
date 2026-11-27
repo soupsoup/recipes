@@ -20,6 +20,12 @@ database server is needed.
   delete them. Sign up with this email to become the admin.
 - `DATABASE_URL`: a Postgres connection string. Set this in production.
 - `PORT`: port to listen on (default `3000`).
+- `RESET_REQUEST_WEBHOOK_URL`: a Mattermost incoming webhook. **Forgot your
+  password?** on the sign-in page posts there, with a link to the admin's reset
+  page already filled in; the admin makes the link and sends it. Without it the
+  requests only go to the service log. The form gives the same answer for any
+  email, pings at most once per email every 15 minutes, and takes 5 requests an
+  hour from one address.
 
 ## Deploy to Vercel
 
