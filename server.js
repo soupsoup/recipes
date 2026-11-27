@@ -6,6 +6,7 @@ const views = require('./lib/views');
 const { AVATAR_PRESETS } = require('./lib/presets');
 const { halloween, contestStart, contestEnd } = require('./lib/halloween');
 const { parseVideo } = require('./lib/video');
+const { webhookNotifier, plain } = require('./lib/notify');
 
 const COOKIE = 'ccr_session';
 
@@ -63,7 +64,7 @@ function recipeId(req) {
 }
 
 // `now` can be swapped in tests to pretend it's October.
-function createApp({ db, adminEmail, now = () => new Date() }) {
+function createApp({ db, adminEmail, now = () => new Date(), notify = webhookNotifier(process.env.RESET_REQUEST_WEBHOOK_URL) }) {
   const admin = (adminEmail || '').trim().toLowerCase();
   const isAdmin = (user) => Boolean(admin) && user?.email === admin;
   // Every page's header follows the season, which only depends on the date.
@@ -139,6 +140,45 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
     res.redirect('/login');
   });
 
+  // Forgot password: the admin gets a chat message and sends the member a reset link.
+  // The answer is the same whether or not the email has an account, so the form can't be
+  // used to find out who's a member. Each email pings the admin at most once per cooldown,
+  // and each address can ask a few times an hour, so nobody can flood the admin's chat.
+  const FORGOT_COOLDOWN_MS = 15 * 60 * 1000;
+  const FORGOT_PER_HOUR = 5;
+  const forgotByEmail = new Map();
+  const forgotByIp = new Map();
+  const tooSoon = (map, key, limit, windowMs) => {
+    const t = now().getTime();
+    for (const [k, times] of map) {
+      const fresh = times.filter((x) => t - x < windowMs);
+      if (fresh.length) map.set(k, fresh); else map.delete(k);
+    }
+    const times = map.get(key) || [];
+    if (times.length >= limit) return true;
+    map.set(key, [...times, t]);
+    return false;
+  };
+
+  app.get('/forgot', (req, res) => (req.user ? res.redirect('/') : res.send(views.forgotPasswordPage({}))));
+
+  app.post('/forgot', async (req, res) => {
+    const email = (req.body.email || '').trim().toLowerCase();
+    if (!email) return res.status(400).send(views.forgotPasswordPage({ error: 'Please type your email.' }));
+    res.send(views.forgotPasswordPage({ sent: true }));
+    if (tooSoon(forgotByIp, req.ip, FORGOT_PER_HOUR, 60 * 60 * 1000)) return;
+    if (tooSoon(forgotByEmail, email, 1, FORGOT_COOLDOWN_MS)) return;
+    try {
+      const [target] = await db.query('SELECT name FROM users WHERE email = $1', [email]);
+      if (!target) return;
+      const base = process.env.COOL_RECIPES_URL || `${req.protocol}://${req.get('host')}`;
+      await notify(`Password reset request on Cool Cooking Recipes from ${plain(target.name)} (${plain(email)}). `
+        + `Make their link: ${base}/admin/reset?email=${encodeURIComponent(email)}`);
+    } catch (err) {
+      console.error(`[forgot] ${err.message}`);
+    }
+  });
+
   // Signed-out visitors to the main address get the sign-in page right there, with no
   // redirect, so link previews on social media read its share tags.
   app.get('/', (req, res, next) => (req.user ? next() : res.send(views.authPage({ mode: 'login' }))));
@@ -148,7 +188,7 @@ function createApp({ db, adminEmail, now = () => new Date() }) {
 
   const requireAdmin = (req, res, next) => (isAdmin(req.user) ? next() : res.status(404).send(views.notFoundPage({ user: req.user })));
 
-  app.get('/admin/reset', requireAdmin, (req, res) => res.send(views.adminResetPage({ user: req.user })));
+  app.get('/admin/reset', requireAdmin, (req, res) => res.send(views.adminResetPage({ user: req.user, email: String(req.query.email || '') })));
 
   app.post('/admin/reset', requireAdmin, async (req, res) => {
     const email = (req.body.email || '').trim().toLowerCase();
