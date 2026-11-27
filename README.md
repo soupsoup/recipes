@@ -27,23 +27,28 @@ database server is needed.
   email, pings at most once per email every 15 minutes, and takes 5 requests an
   hour from one address.
 
-## Deploy to Vercel
+## Production (VPS)
 
-The database lives in the Supabase project `cool-cooking-recipes`. Its tables
-come from `supabase/migrations/`.
+The site runs at https://recipes.antderosa.com on the VPS, from
+`/var/www/recipes`, as the `recipes` systemd service behind nginx. Its data is
+in the VPS's own Postgres (`deploy/vps/POSTGRES.md`), and settings are in
+`/etc/recipes.env` (see `deploy/vps/recipes.env.example`).
 
-1. In Supabase, open the project, press **Connect**, and copy the
-   **Transaction pooler** connection string (port 6543). If you don't know the
-   database password, reset it under **Project Settings → Database** and put
-   the new one into the string.
-2. On vercel.com, choose **Add New → Project** and import this GitHub repo.
-3. Before deploying, add two environment variables:
-   - `DATABASE_URL`: the connection string from step 1
-   - `ADMIN_EMAIL`: your email
-4. Press **Deploy**. Every push to the connected branch redeploys the app.
+To ship a change, merge it into the default branch,
+`claude/fork-logo-text-gaps-khcwxg`. The `recipes-deploy` timer checks GitHub
+every minute, pulls the new commit, reinstalls packages if the lockfile changed
+and restarts the app. On the VPS:
 
-`api/index.js` runs the Express app as a Vercel function, and `vercel.json`
-sends every request that isn't a file in `public/` to it.
+```sh
+journalctl -u recipes-deploy -n 20      # did it deploy?
+journalctl -u recipes -f                # app log
+sudo -u recipes /var/www/recipes/deploy/vps/deploy.sh --rollback <sha>
+```
+
+A rollback holds until the next commit lands; stop `recipes-deploy.timer` to
+stay on it. `recipes-db-backup.timer` dumps the database nightly to
+`/var/backups/recipes/`. The app creates and updates its own tables from
+`lib/schema.sql` when it starts.
 
 ## How it works
 
@@ -88,8 +93,7 @@ sends every request that isn't a file in `public/` to it.
 - **Password resets:** there is no email sending. The admin opens `/admin/reset`,
   enters a member's email, and gets a one-time link (good for 24 hours) to send
   them. The link opens `/reset/<token>`, where they pick a new password; that
-  signs them out everywhere. Only a hash of the token is stored. Run
-  `supabase/migrations/20261010000000_add_password_resets.sql` before using it.
+  signs them out everywhere. Only a hash of the token is stored.
 - My recipes lists everything you've shared, marked verified or waiting.
 - Each verified recipe has a heart. Pressing it saves the recipe to your
   **Favorites** (a button at the top of Recipes); pressing it again removes it.
@@ -108,7 +112,7 @@ sends every request that isn't a file in `public/` to it.
 Sharing the site link on social media or in a chat shows `public/social-card.png`
 (1200×630) with the title and a short description. The tags sit on every page,
 including the sign-in page that link previews land on. They point at
-`https://coolcookingrecipes.vercel.app`; set `COOL_RECIPES_URL` if the site moves. Facebook
+`https://recipes.antderosa.com`; set `COOL_RECIPES_URL` if the site moves. Facebook
 and others cache previews, so after changing the card, refresh it with their
 sharing debugger.
 

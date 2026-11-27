@@ -727,14 +727,11 @@ function createApp({ db, adminEmail, now = () => new Date(), notify = webhookNot
   return app;
 }
 
-// Settings come from environment variables: DATABASE_URL (Postgres, e.g. Supabase)
+// Settings come from environment variables: DATABASE_URL (Postgres)
 // and ADMIN_EMAIL. Without DATABASE_URL the app keeps its data in data/pglite.
 function appFromEnv() {
   // SPOOKY_PREVIEW_DATE (e.g. 2026-10-15) lets you preview the Halloween event locally.
   const preview = process.env.SPOOKY_PREVIEW_DATE ? new Date(`${process.env.SPOOKY_PREVIEW_DATE}T12:00:00-04:00`) : null;
-  if (process.env.VERCEL && !process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is not set. Add the Supabase connection string in the Vercel project settings.');
-  }
   if (!process.env.ADMIN_EMAIL) {
     console.warn('ADMIN_EMAIL is not set, so nobody can see or verify unverified recipes.');
   }
