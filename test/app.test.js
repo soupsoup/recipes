@@ -50,7 +50,7 @@ test('link previews work without signing in', async () => {
   const html = await res.text();
   assert.match(html, /<form method="post" action="\/login"/);
   assert.match(html, /<meta property="og:title" content="Cool Cooking Recipes">/);
-  assert.match(html, /<meta property="og:image" content="https:\/\/coolcookingrecipes\.vercel\.app\/social-card\.png">/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/recipes\.antderosa\.com\/social-card\.png">/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);
   const image = await get('/social-card.png');
   assert.strictEqual(image.status, 200);
